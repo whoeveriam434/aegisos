@@ -1,15 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HomeScreen from "./screens/HomeScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import DevPanel from "./screens/DevPanel";
-
-// Hide debug warnings for cleaner demo
-// LogBox.ignoreAllLogs();
+import { initAIModel } from "./utils/realAIDetection";
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState("Home");
+  const [aiReady, setAiReady] = useState(false);
+
+  // Initialize AI model when app starts
+  useEffect(() => {
+    const setupAI = async () => {
+      const ready = await initAIModel();
+      setAiReady(ready);
+      console.log("🔍 AI Detection Engine:", ready ? "READY" : "FALLBACK MODE");
+    };
+    setupAI();
+  }, []);
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -29,7 +38,7 @@ export default function App() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🛡️ Aegis OS</Text>
         <Text style={styles.headerSubtitle}>
-          Trust Architect • Dignity First
+          Trust Architect • {aiReady ? "AI Ready" : "Demo Mode"}
         </Text>
       </View>
 

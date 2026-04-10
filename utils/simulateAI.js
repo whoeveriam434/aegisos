@@ -1,32 +1,21 @@
 // Simulated NPU scam detection engine
-// This is a HARD-CODED prototype for hackathon demo purposes only
-// In production: Runs locally on device via Android Private Compute Core / Apple Intelligence
+// FALLBACK when real AI is not available
+// In production: This would be replaced by actual on-device model
 
 export const simulateNPUAnalysis = async (scamType) => {
-  // Simulate NPU processing delay (2 seconds)
+  // Simulate NPU processing delay
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  // Hard-coded responses based on scam type
   const responses = {
     whatsapp: {
       risk: "CRITICAL",
-      tactic: [
-        "urgency",
-        "impersonation",
-        "social_engineering",
-        "family_emergency",
-      ],
+      tactic: ["urgency", "impersonation", "family_emergency"],
       action: "trigger_friction",
       confidence: 0.94,
     },
     fake_call: {
       risk: "CRITICAL",
-      tactic: [
-        "urgency",
-        "impersonation",
-        "authority_figure",
-        "official_threat",
-      ],
+      tactic: ["urgency", "impersonation", "authority_figure"],
       action: "trigger_friction",
       confidence: 0.91,
     },
@@ -44,33 +33,12 @@ export const simulateNPUAnalysis = async (scamType) => {
     },
   };
 
-  const result = responses[scamType] || responses.default;
+  return responses[scamType] || responses.default;
+};
 
-  console.log("🤖 [SIMULATED] NPU Analysis Complete:", result);
-  console.log(
-    "📍 In production, this runs locally on device NPU - zero cloud data",
-  );
-
+// For demo compatibility
+export const simulateNPUAnalysisWithCallback = async (scamType, callback) => {
+  const result = await simulateNPUAnalysis(scamType);
+  if (callback) callback(result);
   return result;
-};
-
-// For demo: Different scam variants
-export const simulateUrgentFamilyScam = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  return {
-    risk: "CRITICAL",
-    tactic: ["urgency", "family_impersonation", "financial_request"],
-    action: "trigger_friction",
-    confidence: 0.96,
-  };
-};
-
-export const simulateOfficialImpersonation = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  return {
-    risk: "CRITICAL",
-    tactic: ["authority_impersonation", "threat", "urgency"],
-    action: "trigger_friction",
-    confidence: 0.93,
-  };
 };

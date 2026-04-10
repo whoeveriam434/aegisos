@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,11 @@ import {
 } from "react-native";
 import useStore from "../store";
 import { simulateNPUAnalysis } from "../utils/simulateAI";
+import {
+  detectScamWithAI,
+  analyzeMessageText,
+  initAIModel,
+} from "../utils/realAIDetection";
 
 export default function DevPanel() {
   const {
@@ -19,22 +24,58 @@ export default function DevPanel() {
     frictionTimer,
     userSettings,
   } = useStore();
+  const [useRealAI, setUseRealAI] = useState(true); // Toggle between real and simulated
 
   const handleTriggerScam = async (type, scamName, appContext = null) => {
+    // Create sample scam text based on type
+    const scamTexts = {
+      whatsapp:
+        "URGENT! Mom, it's me. I lost my phone. Send HK$50,000 to this PayMe account immediately. Don't tell anyone. I'll explain later.",
+      fake_call:
+        "This is Officer Chen from Hong Kong Police. You have an outstanding warrant. Transfer HK$100,000 for bail immediately or you will be arrested.",
+      payme_scam:
+        "ALERT: Your PayMe account will be suspended in 2 hours. Verify your identity with an urgent FPS transfer of HK$8,000 to maintain your account.",
+    };
+
     Alert.alert(
-      "🔍 NPU Analysis Running",
-      `Simulating on-device AI detection for ${scamName}...`,
+      "🔍 AI Analysis Running",
+      `Using ${useRealAI ? "REAL on-device AI" : "Simulated NPU"} detection for ${scamName}...`,
       [{ text: "OK" }],
     );
 
-    const analysis = await simulateNPUAnalysis(type);
+    let result;
 
-    if (analysis.action === "trigger_friction") {
-      const duration = userSettings.coolingOffPeriod * 60; // Convert minutes to seconds
+    if (useRealAI) {
+      // REAL AI detection
+      result = await detectScamWithAI(scamTexts[type], type);
+      console.log("🤖 REAL AI Result:", result);
+    } else {
+      // Simulated fallback
+      result = await simulateNPUAnalysis(type);
+      console.log("🎮 Simulated Result:", result);
+    }
+
+    if (result.action === "trigger_friction" || result.isScam === true) {
+      const duration = userSettings.coolingOffPeriod * 60;
       triggerScam(type, duration, appContext);
+
+      const confidencePercent = result.confidence
+        ? Math.round(result.confidence * 100)
+        : "N/A";
+
       Alert.alert(
         "🚨 Scam Pattern Detected!",
-        `Risk: ${analysis.risk}\nTactics: ${analysis.tactic.join(", ")}\n\nAlgorithmic friction activated for ${userSettings.coolingOffPeriod} minutes (your preset cooling-off period).`,
+        `Detection: ${useRealAI ? "REAL AI (keyword-based)" : "Simulated NPU"}\n` +
+          `Risk: ${result.risk}\n` +
+          `Confidence: ${confidencePercent}%\n` +
+          `Tactics: ${result.tactic || result.tactics?.join(", ") || "detected"}\n\n` +
+          `Algorithmic friction activated for ${userSettings.coolingOffPeriod} minutes.`,
+        [{ text: "OK" }],
+      );
+    } else {
+      Alert.alert(
+        "✅ No Scam Detected",
+        `AI analysis found no scam patterns.\nConfidence: ${Math.round(result.confidence * 100)}%`,
         [{ text: "OK" }],
       );
     }
@@ -67,11 +108,30 @@ export default function DevPanel() {
     ]);
   };
 
+  const toggleAIMode = async () => {
+    if (!useRealAI) {
+      // Switching to real AI - test if it works
+      const success = await initAIModel();
+      if (success) {
+        setUseRealAI(true);
+        Alert.alert(
+          "✅ Real AI Active",
+          "Using keyword-based scam detection on device.",
+        );
+      } else {
+        Alert.alert("⚠️ AI Not Ready", "Staying on simulated mode.");
+      }
+    } else {
+      setUseRealAI(false);
+      Alert.alert("🎮 Simulated Mode Active", "Using simulated NPU responses.");
+    }
+  };
+
   const getStatusText = () => {
     if (isScamActive) {
       return `⚠️ ACTIVE - ${scamType} (${Math.ceil(frictionTimer / 60)}m ${frictionTimer % 60}s remaining)`;
     }
-    return "✅ INACTIVE - Monitoring for scam patterns";
+    return `✅ INACTIVE - Using ${useRealAI ? "REAL AI" : "SIMULATED"} detection`;
   };
 
   return (
@@ -80,7 +140,25 @@ export default function DevPanel() {
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.title}>🎮 Dev Panel</Text>
-      <Text style={styles.subtitle}>Demo Control Center (Wizard of Oz)</Text>
+      <Text style={styles.subtitle}>Demo Control Center</Text>
+
+      {/* AI Mode Toggle */}
+      <TouchableOpacity
+        style={[
+          styles.modeButton,
+          useRealAI ? styles.realMode : styles.simMode,
+        ]}
+        onPress={toggleAIMode}
+      >
+        <Text style={styles.modeButtonText}>
+          {useRealAI
+            ? "🤖 REAL AI MODE (Active)"
+            : "🎮 SIMULATED MODE (Active)"}
+        </Text>
+        <Text style={styles.modeSubtext}>
+          Tap to switch to {useRealAI ? "Simulated" : "Real AI"}
+        </Text>
+      </TouchableOpacity>
 
       <View style={[styles.statusCard, isScamActive && styles.statusActive]}>
         <Text style={styles.statusText}>{getStatusText()}</Text>
@@ -128,24 +206,25 @@ export default function DevPanel() {
 
       <View style={styles.infoBox}>
         <Text style={styles.infoTitle}>🎤 Demo Script</Text>
-        <Text style={styles.infoText}>1. Press any scam button above</Text>
-        <Text style={styles.infoText}>2. AI "analyzes" for 2 seconds</Text>
-        <Text style={styles.infoText}>3. Go to "Daily Apps" tab</Text>
-        <Text style={styles.infoText}>4. Friction overlay appears</Text>
         <Text style={styles.infoText}>
-          5. Timer counts down (your preset duration)
+          1. Choose AI mode (Real or Simulated)
         </Text>
+        <Text style={styles.infoText}>2. Press any scam button above</Text>
+        <Text style={styles.infoText}>3. AI analyzes scam text patterns</Text>
+        <Text style={styles.infoText}>4. Go to "Daily Apps" tab</Text>
+        <Text style={styles.infoText}>5. Friction overlay appears</Text>
         <Text style={styles.infoText}>
-          6. Educational tip shows HK-specific facts
+          6. Timer counts down (your preset duration)
         </Text>
       </View>
 
       <View style={styles.techBox}>
-        <Text style={styles.techTitle}>🔬 Technical Note for Judges</Text>
+        <Text style={styles.techTitle}>🔬 How Real AI Detection Works</Text>
         <Text style={styles.techText}>
-          In production, detection runs locally via Android Private Compute Core
-          / Apple Intelligence NPU. No data leaves the device. This prototype
-          simulates that detection.
+          • Keyword-based pattern matching runs entirely on-device • Detects
+          urgency, impersonation, financial pressure • Zero data leaves your
+          phone • Can be upgraded to actual ML model (TensorFlow Lite /
+          ExecuTorch)
         </Text>
       </View>
     </ScrollView>
@@ -168,7 +247,30 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: "#6B8AAC",
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  modeButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  realMode: {
+    backgroundColor: "#4CAF50",
+  },
+  simMode: {
+    backgroundColor: "#FF9800",
+  },
+  modeButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modeSubtext: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    marginTop: 4,
   },
   statusCard: {
     backgroundColor: "#E8F5E9",

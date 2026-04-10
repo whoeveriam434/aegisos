@@ -3,17 +3,19 @@ import { create } from "zustand";
 const useStore = create((set) => ({
   // States
   isScamActive: false,
-  scamType: null, // 'whatsapp', 'fake_call', 'payme_scam'
+  scamType: null, // 'whatsapp', 'fake_call', 'payme_scam', 'user_activated'
   frictionTimer: 0,
-  currentApp: null, // The app user was trying to use
+  currentApp: null,
 
+  // User settings
   userSettings: {
     coolingOffPeriod: 3, // minutes
     trustedContact: null,
     protectionEnabled: true,
   },
 
-  // Demo balance removed - not needed for hackathon
+  // NEW: Family Circle (Trusted contacts for notifications)
+  familyCircle: [],
 
   // Actions
   triggerScam: (type, duration, appContext = null) =>
@@ -38,6 +40,23 @@ const useStore = create((set) => ({
     set((state) => ({
       userSettings: { ...state.userSettings, ...newSettings },
     })),
+
+  // NEW: Family Circle actions
+  addFamilyContact: (name, phone) =>
+    set((state) => ({
+      familyCircle: [...state.familyCircle, { id: Date.now(), name, phone }],
+    })),
+
+  removeFamilyContact: (id) =>
+    set((state) => ({
+      familyCircle: state.familyCircle.filter((contact) => contact.id !== id),
+    })),
+
+  // NEW: Simulated family notification (for demo)
+  notifyFamily: (message, contactName) => {
+    console.log(`📱 [SIMULATED] Notifying ${contactName}: ${message}`);
+    return true;
+  },
 }));
 
 export default useStore;
