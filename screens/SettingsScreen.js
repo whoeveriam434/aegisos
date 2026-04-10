@@ -13,6 +13,9 @@ import useStore from "../store";
 export default function SettingsScreen() {
   const { userSettings, updateSettings } = useStore();
   const [trustedContactInput, setTrustedContactInput] = useState("");
+  // #region agent log
+  fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"pre-fix",hypothesisId:"H1",location:"SettingsScreen.js:17",message:"Settings render types",data:{protectionEnabledValue:userSettings?.protectionEnabled,protectionEnabledType:typeof userSettings?.protectionEnabled,coolingOffPeriodType:typeof userSettings?.coolingOffPeriod,trustedContactType:typeof userSettings?.trustedContact},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -26,7 +29,10 @@ export default function SettingsScreen() {
           <Switch
             value={userSettings.protectionEnabled}
             onValueChange={(value) =>
-              updateSettings({ protectionEnabled: value })
+              // #region agent log
+              (fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"pre-fix",hypothesisId:"H1",location:"SettingsScreen.js:31",message:"Switch onValueChange type",data:{value,valueType:typeof value},timestamp:Date.now()})}).catch(()=>{}),
+              // #endregion
+              updateSettings({ protectionEnabled: value }))
             }
             trackColor={{ false: "#ccc", true: "#4CAF50" }}
             thumbColor={"#fff"}
