@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+} from "react-native";
 import useStore from "../store";
 import { getTrustedContacts } from "../utils/trustedContactsStorage";
 
@@ -106,9 +113,21 @@ export default function FrictionOverlay() {
   }, [showContactPanel, overlayHeight, containerHeight, panelHeight]);
 
   return (
-    <View
-      style={styles.overlay}
+    <ScrollView
+      style={styles.overlayScroll}
+      contentContainerStyle={styles.overlayContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
       onLayout={(event) => setOverlayHeight(event.nativeEvent.layout.height)}
+      onScroll={(event) => {
+        const y = event.nativeEvent.contentOffset.y;
+        if (y <= 0) return;
+        // #region agent log
+        console.log("[dbg:H4] overlay scroll", { y });
+        fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"post-fix-scroll",hypothesisId:"H4",location:"FrictionOverlay.js:120",message:"overlay scroll",data:{y,showContactPanel},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+      }}
+      scrollEventThrottle={16}
       onTouchMove={() => {
         // #region agent log
         console.log("[dbg:H3] overlay touch move");
@@ -196,21 +215,25 @@ export default function FrictionOverlay() {
           </Text>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  overlayScroll: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: "#E6F0FA",
-    justifyContent: "center",
-    alignItems: "center",
     zIndex: 9999,
+  },
+  overlayContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 12,
   },
   container: {
     width: "90%",
