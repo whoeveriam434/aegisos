@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,56 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  TextInput,
 } from "react-native";
-import Slider from "@react-native-community/slider"
+import Slider from "@react-native-community/slider";
 import useStore from "../store";
+import {
+  getTrustedContacts,
+  addTrustedContact,
+  removeTrustedContact,
+} from "../utils/trustedContactsStorage";
 
 export default function SettingsScreen() {
   const { userSettings, updateSettings } = useStore();
+  const [trustedContactName, setTrustedContactName] = useState("");
+  const [trustedContactPhone, setTrustedContactPhone] = useState("");
+  const [trustedContacts, setTrustedContacts] = useState([]);
+
+  useEffect(() => {
+    const loadContacts = async () => {
+      const contacts = await getTrustedContacts();
+      setTrustedContacts(contacts);
+    };
+    loadContacts();
+  }, []);
+
+  const handleAddContact = async () => {
+    const name = trustedContactName.trim();
+    const phone = trustedContactPhone.trim();
+    if (!name || !phone) {
+      Alert.alert("Missing details", "Please enter both contact name and phone.");
+      return;
+    }
+
+    const updated = await addTrustedContact({ name, phone });
+    setTrustedContacts(updated);
+    updateSettings({ trustedContact: `${name}: ${phone}` });
+    setTrustedContactName("");
+    setTrustedContactPhone("");
+    Alert.alert("Saved", "Trusted contact added locally on this device.");
+  };
+
+  const handleRemoveContact = async (contact) => {
+    const updated = await removeTrustedContact(contact.id);
+    setTrustedContacts(updated);
+    if (userSettings.trustedContact === `${contact.name}: ${contact.phone}`) {
+      const next = updated[0];
+      updateSettings({
+        trustedContact: next ? `${next.name}: ${next.phone}` : null,
+      });
+    }
+  };
 
   return (
     <ScrollView
@@ -73,29 +117,47 @@ export default function SettingsScreen() {
         <Text style={styles.contactDisplay}>
           {userSettings.trustedContact || "No contact added yet"}
         </Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            Alert.alert("Add Trusted Contact", "Enter name and phone number", [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Save",
-                onPress: () => {
-                  // For demo, we'll use a predefined contact
-                  updateSettings({
-                    trustedContact: "Daughter: +852 9123 4567",
-                  });
-                  Alert.alert(
-                    "✅ Contact Saved",
-                    "You can now call them from the safety screen.",
-                  );
-                },
-              },
-            ]);
-          }}
-        >
-          <Text style={styles.addButtonText}>+ Add / Edit Contact</Text>
-        </TouchableOpacity>
+        <View style={styles.contactInputRow}>
+          <TextInput
+            style={styles.contactInput}
+            placeholder="Contact Name"
+            value={trustedContactName}
+            onChangeText={setTrustedContactName}
+          />
+        </View>
+        <View style={styles.contactInputRow}>
+          <TextInput
+            style={styles.contactInput}
+            placeholder="Phone Number"
+            value={trustedContactPhone}
+            onChangeText={setTrustedContactPhone}
+            keyboardType="phone-pad"
+          />
+          <TouchableOpacity style={styles.addButton} onPress={handleAddContact}>
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+        {trustedContacts.map((contact) => (
+          <View key={contact.id} style={styles.contactRow}>
+            <TouchableOpacity
+              style={styles.contactSelectButton}
+              onPress={() =>
+                updateSettings({
+                  trustedContact: `${contact.name}: ${contact.phone}`,
+                })
+              }
+            >
+              <Text style={styles.contactSelectText}>{contact.name}</Text>
+              <Text style={styles.contactPhoneText}>{contact.phone}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contactDeleteButton}
+              onPress={() => handleRemoveContact(contact)}
+            >
+              <Text style={styles.contactDeleteText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
         <Text style={styles.hint}>
           You can call them directly from the safety screen
         </Text>
@@ -194,10 +256,60 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
   addButtonText: {
     color: "white",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  contactInputRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  contactInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D5E1EC",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "white",
+    color: "#1A3A5C",
+  },
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  contactSelectButton: {
+    flex: 1,
+    backgroundColor: "#F0F4F9",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  contactSelectText: {
+    color: "#1A3A5C",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  contactPhoneText: {
+    color: "#6B8AAC",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  contactDeleteButton: {
+    backgroundColor: "#FCE8E8",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  contactDeleteText: {
+    color: "#A94442",
+    fontSize: 13,
     fontWeight: "600",
   },
   infoCard: {

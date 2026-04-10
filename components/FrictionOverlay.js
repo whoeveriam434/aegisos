@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import useStore from "../store";
+import { getTrustedContacts } from "../utils/trustedContactsStorage";
 
 export default function FrictionOverlay() {
   const { frictionTimer, scamType, resetScam, userSettings } = useStore();
   const [timeLeft, setTimeLeft] = useState(frictionTimer);
+  const [trustedContacts, setTrustedContacts] = useState([]);
+  const [showContactPanel, setShowContactPanel] = useState(false);
+  const [overlayHeight, setOverlayHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const [panelHeight, setPanelHeight] = useState(0);
 
   useEffect(() => {
     setTimeLeft(frictionTimer);
   }, [frictionTimer]);
+
+  useEffect(() => {
+    const loadTrustedContacts = async () => {
+      const contacts = await getTrustedContacts();
+      setTrustedContacts(contacts);
+    };
+    loadTrustedContacts();
+  }, []);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -34,18 +48,21 @@ export default function FrictionOverlay() {
   };
 
   const handleContactTrusted = () => {
-    const contact = userSettings.trustedContact || "your trusted contact";
-    Alert.alert(
-      "📞 Contact Trusted Member",
-      `Would you like to call ${contact} to verify this transaction?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Call",
-          onPress: () => Alert.alert("Calling", `Connecting to ${contact}...`),
-        },
-      ],
-    );
+    // #region agent log
+    console.log("[dbg:H1] contact panel open requested", {
+      trustedContactsCount: trustedContacts.length,
+    });
+    fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"pre-fix-scroll",hypothesisId:"H1",location:"FrictionOverlay.js:54",message:"contact panel open requested",data:{trustedContactsCount:trustedContacts.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    setShowContactPanel(true);
+  };
+
+  const handleCallContact = (contact) => {
+    setShowContactPanel(false);
+    const contactLabel = contact.phone
+      ? `${contact.name} (${contact.phone})`
+      : contact.name;
+    Alert.alert("Calling", `Connecting to ${contactLabel}...`);
   };
 
   // HK-specific educational tips based on scam type
@@ -75,9 +92,36 @@ export default function FrictionOverlay() {
     }
   };
 
+  useEffect(() => {
+    if (!showContactPanel) return;
+    // #region agent log
+    console.log("[dbg:H2] panel visible with layout snapshot", {
+      overlayHeight,
+      containerHeight,
+      panelHeight,
+      totalEstimate: containerHeight + panelHeight,
+    });
+    fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"pre-fix-scroll",hypothesisId:"H2",location:"FrictionOverlay.js:97",message:"panel visible with layout snapshot",data:{overlayHeight,containerHeight,panelHeight,totalEstimate:containerHeight+panelHeight},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [showContactPanel, overlayHeight, containerHeight, panelHeight]);
+
   return (
-    <View style={styles.overlay}>
-      <View style={styles.container}>
+    <View
+      style={styles.overlay}
+      onLayout={(event) => setOverlayHeight(event.nativeEvent.layout.height)}
+      onTouchMove={() => {
+        // #region agent log
+        console.log("[dbg:H3] overlay touch move");
+        fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"pre-fix-scroll",hypothesisId:"H3",location:"FrictionOverlay.js:111",message:"overlay touch move",data:{showContactPanel},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+      }}
+    >
+      <View
+        style={styles.container}
+        onLayout={(event) =>
+          setContainerHeight(event.nativeEvent.layout.height)
+        }
+      >
         <Text style={styles.shieldIcon}>🛡️</Text>
 
         <Text style={styles.title}>System Security Check</Text>
@@ -110,6 +154,41 @@ export default function FrictionOverlay() {
             👥 Contact Trusted Member
           </Text>
         </TouchableOpacity>
+
+        {showContactPanel && (
+          <View
+            style={styles.contactPanel}
+            onLayout={(event) => setPanelHeight(event.nativeEvent.layout.height)}
+          >
+            <Text style={styles.contactPanelTitle}>Select Trusted Contact</Text>
+            {trustedContacts.length > 0 ? (
+              trustedContacts.map((contact) => (
+                <TouchableOpacity
+                  key={contact.id}
+                  style={styles.contactOption}
+                  onPress={() => handleCallContact(contact)}
+                >
+                  <Text style={styles.contactOptionName}>{contact.name}</Text>
+                  <Text style={styles.contactOptionPhone}>
+                    {contact.phone || "No phone"}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.noContactText}>
+                No saved trusted contacts. Using default setting:
+                {"\n"}
+                {userSettings.trustedContact || "No contact selected"}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={styles.closePanelButton}
+              onPress={() => setShowContactPanel(false)}
+            >
+              <Text style={styles.closePanelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {timeLeft > 0 && (
           <Text style={styles.waitText}>
@@ -241,5 +320,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#8AA4BC",
     textAlign: "center",
+  },
+  contactPanel: {
+    width: "100%",
+    backgroundColor: "#F8FAFD",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#DCE7F3",
+  },
+  contactPanelTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1A3A5C",
+    marginBottom: 10,
+  },
+  contactOption: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  contactOptionName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1A3A5C",
+  },
+  contactOptionPhone: {
+    fontSize: 12,
+    color: "#6B8AAC",
+    marginTop: 2,
+  },
+  noContactText: {
+    fontSize: 13,
+    color: "#6B8AAC",
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  closePanelButton: {
+    backgroundColor: "#E5ECF5",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  closePanelButtonText: {
+    color: "#1A3A5C",
+    fontWeight: "600",
   },
 });
