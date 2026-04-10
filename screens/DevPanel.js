@@ -9,11 +9,8 @@ import {
 } from "react-native";
 import useStore from "../store";
 import { simulateNPUAnalysis } from "../utils/simulateAI";
-import {
-  detectScamWithAI,
-  analyzeMessageText,
-  initAIModel,
-} from "../utils/realAIDetection";
+import { detectScamWithAI, analyzeMessageText } from "../utils/realAIDetection";
+import { detectImpersonation } from "../utils/impersonationDetector";
 
 export default function DevPanel() {
   const {
@@ -23,11 +20,11 @@ export default function DevPanel() {
     scamType,
     frictionTimer,
     userSettings,
+    privacySettings,
   } = useStore();
-  const [useRealAI, setUseRealAI] = useState(true); // Toggle between real and simulated
+  const [useRealAI, setUseRealAI] = useState(true);
 
   const handleTriggerScam = async (type, scamName, appContext = null) => {
-    // Create sample scam text based on type
     const scamTexts = {
       whatsapp:
         "URGENT! Mom, it's me. I lost my phone. Send HK$50,000 to this PayMe account immediately. Don't tell anyone. I'll explain later.",
@@ -39,43 +36,53 @@ export default function DevPanel() {
 
     Alert.alert(
       "🔍 AI Analysis Running",
-      `Using ${useRealAI ? "REAL on-device AI" : "Simulated NPU"} detection for ${scamName}...`,
+      `Using ${useRealAI ? "REAL on-device AI" : "Simulated NPU"} detection...`,
       [{ text: "OK" }],
     );
 
     let result;
+    let personalDetection = null;
 
     if (useRealAI) {
-      // REAL AI detection
+      // Run keyword-based detection
       result = await detectScamWithAI(scamTexts[type], type);
-      console.log("🤖 REAL AI Result:", result);
+
+      // NEW: Run personal pattern detection if enabled
+      if (privacySettings.enablePersonalPatterns) {
+        personalDetection = await detectImpersonation(
+          scamTexts[type],
+          "family",
+          true,
+        );
+        console.log("🧠 Personal Detection Result:", personalDetection);
+      }
     } else {
-      // Simulated fallback
       result = await simulateNPUAnalysis(type);
-      console.log("🎮 Simulated Result:", result);
     }
 
     if (result.action === "trigger_friction" || result.isScam === true) {
       const duration = userSettings.coolingOffPeriod * 60;
-      triggerScam(type, duration, appContext);
 
-      const confidencePercent = result.confidence
-        ? Math.round(result.confidence * 100)
-        : "N/A";
+      // Pass personal detection details to the friction overlay
+      triggerScam(type, duration, appContext, { personalDetection });
 
-      Alert.alert(
-        "🚨 Scam Pattern Detected!",
-        `Detection: ${useRealAI ? "REAL AI (keyword-based)" : "Simulated NPU"}\n` +
-          `Risk: ${result.risk}\n` +
-          `Confidence: ${confidencePercent}%\n` +
-          `Tactics: ${result.tactic || result.tactics?.join(", ") || "detected"}\n\n` +
-          `Algorithmic friction activated for ${userSettings.coolingOffPeriod} minutes.`,
-        [{ text: "OK" }],
-      );
+      let message = `Detection: ${useRealAI ? "REAL AI" : "Simulated NPU"}\n`;
+      message += `Risk: ${result.risk}\n`;
+      message += `Confidence: ${result.confidence ? Math.round(result.confidence * 100) : "N/A"}%\n\n`;
+
+      if (personalDetection?.isImpersonation) {
+        message += `🧠 PERSONAL PATTERN DETECTION:\n`;
+        message += `${personalDetection.deviations?.slice(0, 2).join("\n")}\n`;
+        message += `Confidence: ${Math.round(personalDetection.confidence * 100)}%\n\n`;
+      }
+
+      message += `Cooling-off period: ${userSettings.coolingOffPeriod} minutes.`;
+
+      Alert.alert("🚨 Scam Pattern Detected!", message, [{ text: "OK" }]);
     } else {
       Alert.alert(
         "✅ No Scam Detected",
-        `AI analysis found no scam patterns.\nConfidence: ${Math.round(result.confidence * 100)}%`,
+        `Confidence: ${Math.round(result.confidence * 100)}%`,
         [{ text: "OK" }],
       );
     }
@@ -108,23 +115,13 @@ export default function DevPanel() {
     ]);
   };
 
-  const toggleAIMode = async () => {
-    if (!useRealAI) {
-      // Switching to real AI - test if it works
-      const success = await initAIModel();
-      if (success) {
-        setUseRealAI(true);
-        Alert.alert(
-          "✅ Real AI Active",
-          "Using keyword-based scam detection on device.",
-        );
-      } else {
-        Alert.alert("⚠️ AI Not Ready", "Staying on simulated mode.");
-      }
-    } else {
-      setUseRealAI(false);
-      Alert.alert("🎮 Simulated Mode Active", "Using simulated NPU responses.");
-    }
+  const toggleAIMode = () => {
+    setUseRealAI(!useRealAI);
+    Alert.alert(
+      `Mode Changed`,
+      `Now using ${!useRealAI ? "REAL AI" : "SIMULATED"} detection.`,
+      [{ text: "OK" }],
+    );
   };
 
   const getStatusText = () => {
@@ -159,6 +156,24 @@ export default function DevPanel() {
           Tap to switch to {useRealAI ? "Simulated" : "Real AI"}
         </Text>
       </TouchableOpacity>
+
+      {/* Personal Pattern Status */}
+      {privacySettings.enablePersonalPatterns ? (
+        <View style={styles.personalActiveBadge}>
+          <Text style={styles.personalActiveText}>
+            🧠 Personal Pattern Detection: ENABLED
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.personalInactiveBadge}>
+          <Text style={styles.personalInactiveText}>
+            🔒 Personal Pattern Detection: DISABLED
+          </Text>
+          <Text style={styles.personalHint}>
+            Enable in Settings for personalized scam detection
+          </Text>
+        </View>
+      )}
 
       <View style={[styles.statusCard, isScamActive && styles.statusActive]}>
         <Text style={styles.statusText}>{getStatusText()}</Text>
@@ -207,24 +222,35 @@ export default function DevPanel() {
       <View style={styles.infoBox}>
         <Text style={styles.infoTitle}>🎤 Demo Script</Text>
         <Text style={styles.infoText}>
-          1. Choose AI mode (Real or Simulated)
+          1. Go to Settings → Enable Personal Pattern Detection
         </Text>
-        <Text style={styles.infoText}>2. Press any scam button above</Text>
-        <Text style={styles.infoText}>3. AI analyzes scam text patterns</Text>
-        <Text style={styles.infoText}>4. Go to "Daily Apps" tab</Text>
-        <Text style={styles.infoText}>5. Friction overlay appears</Text>
         <Text style={styles.infoText}>
-          6. Timer counts down (your preset duration)
+          2. Tap "Learn My Patterns" (uses sample messages)
+        </Text>
+        <Text style={styles.infoText}>
+          3. Return here and press any scam button
+        </Text>
+        <Text style={styles.infoText}>
+          4. AI analyzes + Personal Pattern Detection runs
+        </Text>
+        <Text style={styles.infoText}>
+          5. Go to "Daily Apps" tab → Friction overlay appears
+        </Text>
+        <Text style={styles.infoText}>
+          6. See personalized detection results!
         </Text>
       </View>
 
       <View style={styles.techBox}>
-        <Text style={styles.techTitle}>🔬 How Real AI Detection Works</Text>
+        <Text style={styles.techTitle}>
+          🔬 How Personal Pattern Detection Works
+        </Text>
         <Text style={styles.techText}>
-          • Keyword-based pattern matching runs entirely on-device • Detects
-          urgency, impersonation, financial pressure • Zero data leaves your
-          phone • Can be upgraded to actual ML model (TensorFlow Lite /
-          ExecuTorch)
+          • Aegis learns communication patterns from your actual messages\n •
+          Compares new messages against learned baseline\n • Detects deviations
+          in urgency, money requests, writing style\n • All analysis runs
+          locally on your device — NO cloud\n • You control: enable, learn,
+          clear patterns anytime
         </Text>
       </View>
     </ScrollView>
@@ -253,7 +279,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 16,
-    marginBottom: 20,
+    marginBottom: 12,
     alignItems: "center",
   },
   realMode: {
@@ -270,6 +296,35 @@ const styles = StyleSheet.create({
   modeSubtext: {
     color: "rgba(255,255,255,0.8)",
     fontSize: 12,
+    marginTop: 4,
+  },
+  personalActiveBadge: {
+    backgroundColor: "#E8F5E9",
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  personalActiveText: {
+    fontSize: 13,
+    color: "#2E7D32",
+    fontWeight: "500",
+  },
+  personalInactiveBadge: {
+    backgroundColor: "#FFF8E7",
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  personalInactiveText: {
+    fontSize: 13,
+    color: "#FF9800",
+    fontWeight: "500",
+  },
+  personalHint: {
+    fontSize: 11,
+    color: "#8AA4BC",
     marginTop: 4,
   },
   statusCard: {

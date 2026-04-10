@@ -3,27 +3,43 @@ import { create } from "zustand";
 const useStore = create((set) => ({
   // States
   isScamActive: false,
-  scamType: null, // 'whatsapp', 'fake_call', 'payme_scam', 'user_activated'
+  scamType: null,
   frictionTimer: 0,
   currentApp: null,
+  activeDetectionDetails: null,
 
   // User settings
   userSettings: {
-    coolingOffPeriod: 3, // minutes
+    coolingOffPeriod: 3,
     trustedContact: null,
     protectionEnabled: true,
   },
 
-  // NEW: Family Circle (Trusted contacts for notifications)
+  // Privacy consent for personal pattern detection
+  privacySettings: {
+    enablePersonalPatterns: false,
+    patternsLearned: false,
+    learningProgress: 0,
+    lastLearningDate: null,
+  },
+
+  // Learned patterns storage
+  learnedPatterns: {
+    family: null,
+    bank: null,
+  },
+
+  // Family Circle
   familyCircle: [],
 
   // Actions
-  triggerScam: (type, duration, appContext = null) =>
+  triggerScam: (type, duration, appContext = null, detectionDetails = null) =>
     set({
       isScamActive: true,
       scamType: type,
       frictionTimer: duration,
       currentApp: appContext,
+      activeDetectionDetails: detectionDetails,
     }),
 
   resetScam: () =>
@@ -32,6 +48,7 @@ const useStore = create((set) => ({
       scamType: null,
       frictionTimer: 0,
       currentApp: null,
+      activeDetectionDetails: null,
     }),
 
   setTimer: (seconds) => set({ frictionTimer: seconds }),
@@ -41,7 +58,41 @@ const useStore = create((set) => ({
       userSettings: { ...state.userSettings, ...newSettings },
     })),
 
-  // NEW: Family Circle actions
+  // Privacy actions
+  setPersonalPatternsEnabled: (enabled) =>
+    set((state) => ({
+      privacySettings: {
+        ...state.privacySettings,
+        enablePersonalPatterns: enabled,
+      },
+    })),
+
+  updateLearningProgress: (progress) =>
+    set((state) => ({
+      privacySettings: { ...state.privacySettings, learningProgress: progress },
+    })),
+
+  setPatternsLearned: (patterns) =>
+    set((state) => ({
+      privacySettings: {
+        ...state.privacySettings,
+        patternsLearned: true,
+        lastLearningDate: new Date().toISOString(),
+      },
+      learnedPatterns: { ...state.learnedPatterns, ...patterns },
+    })),
+
+  clearLearnedPatterns: () =>
+    set((state) => ({
+      privacySettings: {
+        ...state.privacySettings,
+        patternsLearned: false,
+        learningProgress: 0,
+      },
+      learnedPatterns: { family: null, bank: null },
+    })),
+
+  // Family Circle actions
   addFamilyContact: (name, phone) =>
     set((state) => ({
       familyCircle: [...state.familyCircle, { id: Date.now(), name, phone }],
@@ -52,7 +103,6 @@ const useStore = create((set) => ({
       familyCircle: state.familyCircle.filter((contact) => contact.id !== id),
     })),
 
-  // NEW: Simulated family notification (for demo)
   notifyFamily: (message, contactName) => {
     console.log(`📱 [SIMULATED] Notifying ${contactName}: ${message}`);
     return true;
