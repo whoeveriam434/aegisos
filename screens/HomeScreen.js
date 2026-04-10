@@ -11,7 +11,7 @@ import useStore from "../store";
 import FrictionOverlay from "../components/FrictionOverlay";
 
 export default function HomeScreen() {
-  const { isScamActive, scamType, currentApp } = useStore();
+  const { isScamActive, triggerScam } = useStore();
 
   // If scam is active, show friction overlay
   if (isScamActive) {
@@ -26,6 +26,28 @@ export default function HomeScreen() {
     );
   };
 
+  // Feature 3: Emergency Button handler
+  const handleEmergencyPress = () => {
+    Alert.alert(
+      "🛡️ Emergency Protection",
+      "You're feeling pressured. Aegis will activate a 5-minute cooling-off period to give you time to think clearly.\n\nYou can also notify a family member during this time.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Activate Protection",
+          onPress: () => {
+            triggerScam("user_activated", 300); // 5 minutes
+            Alert.alert(
+              "✅ Protection Active",
+              "Take a moment to breathe. You're in control.\n\nThe cooling-off period has started.",
+              [{ text: "OK" }],
+            );
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -36,7 +58,18 @@ export default function HomeScreen() {
         Your daily apps are protected by Aegis OS
       </Text>
 
-      {/* WhatsApp - Common scam vector */}
+      {/* Feature 3: Emergency Button - Prominent placement */}
+      <TouchableOpacity
+        style={styles.emergencyButton}
+        onPress={handleEmergencyPress}
+      >
+        <Text style={styles.emergencyButtonText}>🛡️ I'm Being Pressured</Text>
+        <Text style={styles.emergencySubtext}>
+          Activate safety mode immediately
+        </Text>
+      </TouchableOpacity>
+
+      {/* Apps */}
       <TouchableOpacity
         style={styles.appCard}
         onPress={() => handleAppPress("WhatsApp", "💬")}
@@ -49,7 +82,6 @@ export default function HomeScreen() {
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
 
-      {/* Phone Calls - Common scam vector */}
       <TouchableOpacity
         style={styles.appCard}
         onPress={() => handleAppPress("Phone", "📞")}
@@ -62,7 +94,6 @@ export default function HomeScreen() {
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
 
-      {/* PayMe / FPS - Common scam target */}
       <TouchableOpacity
         style={styles.appCard}
         onPress={() => handleAppPress("PayMe", "💸")}
@@ -75,7 +106,6 @@ export default function HomeScreen() {
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
 
-      {/* Banking App - Common scam target */}
       <TouchableOpacity
         style={styles.appCard}
         onPress={() => handleAppPress("HSBC HK", "🏦")}
@@ -88,7 +118,6 @@ export default function HomeScreen() {
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
 
-      {/* Messages - Common scam vector */}
       <TouchableOpacity
         style={styles.appCard}
         onPress={() => handleAppPress("Messages", "✉️")}
@@ -129,7 +158,30 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: "#8AA4BC",
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  emergencyButton: {
+    backgroundColor: "#FF9800",
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emergencyButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  emergencySubtext: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 12,
+    marginTop: 4,
   },
   appCard: {
     flexDirection: "row",

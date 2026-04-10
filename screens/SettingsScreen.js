@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,45 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  TextInput,
+  Modal,
 } from "react-native";
-import Slider from "@react-native-community/slider"
+import Slider from "@react-native-community/slider";
 import useStore from "../store";
 
 export default function SettingsScreen() {
-  const { userSettings, updateSettings } = useStore();
+  const {
+    userSettings,
+    updateSettings,
+    familyCircle,
+    addFamilyContact,
+    removeFamilyContact,
+  } = useStore();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactPhone, setNewContactPhone] = useState("");
+
+  const handleAddContact = () => {
+    if (!newContactName.trim() || !newContactPhone.trim()) {
+      Alert.alert("Error", "Please enter both name and phone number");
+      return;
+    }
+    addFamilyContact(newContactName, newContactPhone);
+    setNewContactName("");
+    setNewContactPhone("");
+    setModalVisible(false);
+    Alert.alert(
+      "✅ Contact Added",
+      `${newContactName} will be notified during scam attempts.`,
+    );
+  };
+
+  const handleRemoveContact = (id, name) => {
+    Alert.alert("Remove Contact", `Remove ${name} from your family circle?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", onPress: () => removeFamilyContact(id) },
+    ]);
+  };
 
   return (
     <ScrollView
@@ -40,7 +73,7 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
-      {/* Cooling-off Slider - Pre-commitment */}
+      {/* Cooling-off Slider */}
       <View style={styles.card}>
         <Text style={styles.label}>⏱️ Cooling-off Duration</Text>
         <Text style={styles.description}>
@@ -64,7 +97,7 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
-      {/* Trusted Contact - Warm handoff */}
+      {/* Trusted Contact */}
       <View style={styles.card}>
         <Text style={styles.label}>👤 Trusted Contact</Text>
         <Text style={styles.description}>
@@ -81,7 +114,6 @@ export default function SettingsScreen() {
               {
                 text: "Save",
                 onPress: () => {
-                  // For demo, we'll use a predefined contact
                   updateSettings({
                     trustedContact: "Daughter: +852 9123 4567",
                   });
@@ -101,6 +133,42 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
+      {/* Feature 4: Family Circle Section */}
+      <View style={styles.card}>
+        <Text style={styles.label}>👨‍👩‍👧 Family Circle</Text>
+        <Text style={styles.description}>
+          Family members who will be notified when a scam is detected
+        </Text>
+
+        {familyCircle.length === 0 ? (
+          <Text style={styles.emptyText}>No family contacts added yet</Text>
+        ) : (
+          familyCircle.map((contact) => (
+            <View key={contact.id} style={styles.contactItem}>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>{contact.name}</Text>
+                <Text style={styles.contactPhone}>{contact.phone}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => handleRemoveContact(contact.id, contact.name)}
+              >
+                <Text style={styles.removeText}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+
+        <TouchableOpacity
+          style={styles.addFamilyButton}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.addFamilyButtonText}>+ Add Family Member</Text>
+        </TouchableOpacity>
+        <Text style={styles.hint}>
+          They'll receive alerts when you're being targeted
+        </Text>
+      </View>
+
       {/* Explanation Card */}
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>💡 How Pre-Commitment Works</Text>
@@ -114,6 +182,52 @@ export default function SettingsScreen() {
       <Text style={styles.footer}>
         🛡️ Your safety. Your dignity. Your control.
       </Text>
+
+      {/* Modal for adding family contact */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Family Contact</Text>
+
+            <Text style={styles.inputLabel}>Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Daughter, Son"
+              value={newContactName}
+              onChangeText={setNewContactName}
+            />
+
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="+852 9123 4567"
+              value={newContactPhone}
+              onChangeText={setNewContactPhone}
+              keyboardType="phone-pad"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSave}
+                onPress={handleAddContact}
+              >
+                <Text style={styles.modalSaveText}>Add Contact</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -200,6 +314,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  emptyText: {
+    fontSize: 14,
+    color: "#8AA4BC",
+    textAlign: "center",
+    marginVertical: 12,
+  },
+  contactItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F0F4F9",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1A3A5C",
+  },
+  contactPhone: {
+    fontSize: 13,
+    color: "#8AA4BC",
+    marginTop: 2,
+  },
+  removeText: {
+    fontSize: 20,
+    padding: 8,
+  },
+  addFamilyButton: {
+    backgroundColor: "#4CAF50",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  addFamilyButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   infoCard: {
     backgroundColor: "#E8F0FE",
     borderRadius: 20,
@@ -226,5 +384,70 @@ const styles = StyleSheet.create({
     color: "#8AA4BC",
     marginTop: 10,
     marginBottom: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 24,
+    padding: 24,
+    width: "85%",
+    maxWidth: 350,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1A3A5C",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#1A3A5C",
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#DDE5ED",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    backgroundColor: "#F9FBFF",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  modalCancel: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginRight: 8,
+    backgroundColor: "#F0F4F9",
+  },
+  modalCancelText: {
+    color: "#666",
+    fontSize: 16,
+  },
+  modalSave: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginLeft: 8,
+    backgroundColor: "#4A90D9",
+  },
+  modalSaveText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
