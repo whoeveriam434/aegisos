@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -6,44 +6,46 @@ import {
   Switch,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
-import Slider from "@react-native-community/slider";
+import Slider from "@react-native-community/slider"
 import useStore from "../store";
 
 export default function SettingsScreen() {
   const { userSettings, updateSettings } = useStore();
-  const [trustedContactInput, setTrustedContactInput] = useState("");
-  // #region agent log
-  fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"pre-fix",hypothesisId:"H1",location:"SettingsScreen.js:17",message:"Settings render types",data:{protectionEnabledValue:userSettings?.protectionEnabled,protectionEnabledType:typeof userSettings?.protectionEnabled,coolingOffPeriodType:typeof userSettings?.coolingOffPeriod,trustedContactType:typeof userSettings?.trustedContact},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>⚙️ Settings</Text>
-      <Text style={styles.subtitle}>Protection Preferences</Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={styles.title}>⚙️ Protection Settings</Text>
+      <Text style={styles.subtitle}>You are in control</Text>
 
       {/* Enable Protection Toggle */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.label}>🔒 Enable Protection</Text>
+          <Text style={styles.label}>🛡️ Enable Aegis Protection</Text>
           <Switch
             value={userSettings.protectionEnabled}
             onValueChange={(value) =>
-              // #region agent log
-              (fetch("http://127.0.0.1:7760/ingest/512bbc58-7e90-47ef-b694-c8795338be2f",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"146840"},body:JSON.stringify({sessionId:"146840",runId:"pre-fix",hypothesisId:"H1",location:"SettingsScreen.js:31",message:"Switch onValueChange type",data:{value,valueType:typeof value},timestamp:Date.now()})}).catch(()=>{}),
-              // #endregion
-              updateSettings({ protectionEnabled: value }))
+              updateSettings({ protectionEnabled: value })
             }
             trackColor={{ false: "#ccc", true: "#4CAF50" }}
             thumbColor={"#fff"}
           />
         </View>
-        <Text style={styles.hint}>When ON, scam detection is active</Text>
+        <Text style={styles.hint}>
+          When ON, Aegis monitors for scam patterns
+        </Text>
       </View>
 
-      {/* Cooling-off Slider */}
+      {/* Cooling-off Slider - Pre-commitment */}
       <View style={styles.card}>
         <Text style={styles.label}>⏱️ Cooling-off Duration</Text>
+        <Text style={styles.description}>
+          Time delay before sensitive actions
+        </Text>
         <Text style={styles.valueDisplay}>
           {userSettings.coolingOffPeriod} minutes
         </Text>
@@ -58,27 +60,60 @@ export default function SettingsScreen() {
           maximumTrackTintColor="#ccc"
         />
         <Text style={styles.hint}>
-          Time delay before suspicious transactions
+          Longer delays = more protection against urgency scams
         </Text>
       </View>
 
-      {/* Trusted Contact */}
+      {/* Trusted Contact - Warm handoff */}
       <View style={styles.card}>
         <Text style={styles.label}>👤 Trusted Contact</Text>
-        <Text style={styles.contactDisplay}>
-          {userSettings.trustedContact || "No contact added"}
+        <Text style={styles.description}>
+          Someone you trust to verify suspicious requests
         </Text>
-        <View style={styles.inputRow}>
-          <TouchableOpacity style={styles.addButton}>
-            <Text style={styles.addButtonText}>+ Add Contact</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.contactDisplay}>
+          {userSettings.trustedContact || "No contact added yet"}
+        </Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            Alert.alert("Add Trusted Contact", "Enter name and phone number", [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Save",
+                onPress: () => {
+                  // For demo, we'll use a predefined contact
+                  updateSettings({
+                    trustedContact: "Daughter: +852 9123 4567",
+                  });
+                  Alert.alert(
+                    "✅ Contact Saved",
+                    "You can now call them from the safety screen.",
+                  );
+                },
+              },
+            ]);
+          }}
+        >
+          <Text style={styles.addButtonText}>+ Add / Edit Contact</Text>
+        </TouchableOpacity>
         <Text style={styles.hint}>
-          Someone you trust to verify transactions
+          You can call them directly from the safety screen
         </Text>
       </View>
 
-      <Text style={styles.footer}>🛡️ Your safety is our priority</Text>
+      {/* Explanation Card */}
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>💡 How Pre-Commitment Works</Text>
+        <Text style={styles.infoText}>
+          You set your boundaries now, when you're calm. If a scammer tries to
+          pressure you later, Aegis enforces YOUR rules — not ours. You stay in
+          control.
+        </Text>
+      </View>
+
+      <Text style={styles.footer}>
+        🛡️ Your safety. Your dignity. Your control.
+      </Text>
     </ScrollView>
   );
 }
@@ -88,7 +123,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: "#F5F9FF",
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 20,
   },
   title: {
     fontSize: 34,
@@ -97,13 +132,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#6B8AAC",
-    marginBottom: 30,
+    marginBottom: 24,
   },
   card: {
     backgroundColor: "white",
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
     marginBottom: 20,
     shadowColor: "#000",
@@ -121,41 +156,43 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     color: "#1A3A5C",
-    marginBottom: 8,
+  },
+  description: {
+    fontSize: 14,
+    color: "#8AA4BC",
+    marginTop: 4,
+    marginBottom: 12,
   },
   valueDisplay: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: "bold",
     color: "#4A90D9",
     textAlign: "center",
-    marginVertical: 10,
+    marginVertical: 12,
   },
   slider: {
     width: "100%",
     height: 40,
   },
   hint: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#8AA4BC",
-    marginTop: 8,
+    marginTop: 12,
+    lineHeight: 18,
   },
   contactDisplay: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#1A3A5C",
     backgroundColor: "#F0F4F9",
-    padding: 12,
+    padding: 14,
     borderRadius: 12,
-    marginVertical: 10,
-  },
-  inputRow: {
-    flexDirection: "row",
-    gap: 10,
+    marginVertical: 12,
+    fontFamily: "monospace",
   },
   addButton: {
     backgroundColor: "#4A90D9",
     padding: 14,
     borderRadius: 12,
-    flex: 1,
     alignItems: "center",
   },
   addButtonText: {
@@ -163,11 +200,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  infoCard: {
+    backgroundColor: "#E8F0FE",
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 10,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#4A90D9",
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1A3A5C",
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: "#1A3A5C",
+    lineHeight: 20,
+  },
   footer: {
     textAlign: "center",
-    fontSize: 14,
+    fontSize: 13,
     color: "#8AA4BC",
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 40,
   },
 });

@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import useStore from "../store";
 
 export default function FrictionOverlay() {
-  const { frictionTimer, scamType, resetScam, setTimer, userSettings } =
-    useStore();
+  const { frictionTimer, scamType, resetScam, userSettings } = useStore();
   const [timeLeft, setTimeLeft] = useState(frictionTimer);
 
   useEffect(() => {
@@ -18,7 +17,6 @@ export default function FrictionOverlay() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          // Timer reaches 0 - allow user to continue
           resetScam();
           return 0;
         }
@@ -50,56 +48,60 @@ export default function FrictionOverlay() {
     );
   };
 
-  // Get scam type message
+  // HK-specific educational tips based on scam type
+  const getEducationalTip = () => {
+    switch (scamType) {
+      case "whatsapp":
+        return "Did you know? Hong Kong hospitals will never demand FPS transfers before admitting a patient. If someone claims to be a relative, hang up and call them directly.";
+      case "fake_call":
+        return "Did you know? The Hong Kong Police will never ask for bail money or personal banking details over the phone. Legitimate officials will never pressure you to act immediately.";
+      case "payme_scam":
+        return "Did you know? PayMe and FPS transfers are instant and irreversible. Always verify the recipient's identity before sending money — even if they seem urgent.";
+      default:
+        return "Did you know? Scammers create artificial urgency to bypass your rational thinking. Taking a pause is the most powerful defense against fraud.";
+    }
+  };
+
   const getScamMessage = () => {
     switch (scamType) {
       case "whatsapp":
-        return "⚠️ Detected: Urgent message from 'family member' requesting money";
+        return "⚠️ Detected: Urgent 'family member' message requesting money via WhatsApp";
       case "fake_call":
-        return "⚠️ Detected: Call claiming to be from your bank";
+        return "⚠️ Detected: Call claiming to be from official source with authority pressure";
+      case "payme_scam":
+        return "⚠️ Detected: Unusual FPS/PayMe transfer request with urgency patterns";
       default:
-        return "⚠️ Unusual transaction pattern detected";
+        return "⚠️ Unusual activity detected: High-pressure financial request";
     }
   };
 
   return (
     <View style={styles.overlay}>
       <View style={styles.container}>
-        {/* Shield Icon */}
         <Text style={styles.shieldIcon}>🛡️</Text>
 
-        {/* Title */}
         <Text style={styles.title}>System Security Check</Text>
-
-        {/* Subtitle */}
         <Text style={styles.subtitle}>Verifying network safety</Text>
 
-        {/* Countdown Timer */}
         <View style={styles.timerContainer}>
-          <Text style={styles.timerLabel}>Pause Duration</Text>
+          <Text style={styles.timerLabel}>Cooling-off Period</Text>
           <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
         </View>
 
-        {/* Scam Detection Message */}
         <View style={styles.detectionBox}>
           <Text style={styles.detectionText}>{getScamMessage()}</Text>
         </View>
 
-        {/* Main Message */}
         <Text style={styles.message}>
-          We are temporarily pausing transactions for your safety.
+          We are temporarily pausing this action for your safety — as you
+          requested in your settings.
         </Text>
 
-        {/* Educational Tip */}
         <View style={styles.tipBox}>
           <Text style={styles.tipIcon}>💡</Text>
-          <Text style={styles.tipText}>
-            Official institutions never ask for urgent transfers or sensitive
-            information over the phone.
-          </Text>
+          <Text style={styles.tipText}>{getEducationalTip()}</Text>
         </View>
 
-        {/* Trusted Contact Button */}
         <TouchableOpacity
           style={styles.contactButton}
           onPress={handleContactTrusted}
@@ -109,7 +111,6 @@ export default function FrictionOverlay() {
           </Text>
         </TouchableOpacity>
 
-        {/* Timer status text */}
         {timeLeft > 0 && (
           <Text style={styles.waitText}>
             Please wait {formatTime(timeLeft)} before continuing
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#E6F0FA", // Soft blue background
+    backgroundColor: "#E6F0FA",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 9999,
@@ -198,7 +199,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   message: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#1A3A5C",
     textAlign: "center",
     marginBottom: 25,

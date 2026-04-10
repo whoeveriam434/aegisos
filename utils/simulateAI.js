@@ -1,5 +1,6 @@
-// Simulated AI scam detection engine
-// This is a HARD-CODED prototype for demo purposes only
+// Simulated NPU scam detection engine
+// This is a HARD-CODED prototype for hackathon demo purposes only
+// In production: Runs locally on device via Android Private Compute Core / Apple Intelligence
 
 export const simulateNPUAnalysis = async (scamType) => {
   // Simulate NPU processing delay (2 seconds)
@@ -8,54 +9,68 @@ export const simulateNPUAnalysis = async (scamType) => {
   // Hard-coded responses based on scam type
   const responses = {
     whatsapp: {
-      risk: "HIGH",
-      tactic: ["urgency", "impersonation", "social_engineering"],
+      risk: "CRITICAL",
+      tactic: [
+        "urgency",
+        "impersonation",
+        "social_engineering",
+        "family_emergency",
+      ],
       action: "trigger_friction",
-      duration: 180,
+      confidence: 0.94,
     },
     fake_call: {
-      risk: "HIGH",
-      tactic: ["urgency", "impersonation", "authority_figure"],
+      risk: "CRITICAL",
+      tactic: [
+        "urgency",
+        "impersonation",
+        "authority_figure",
+        "official_threat",
+      ],
       action: "trigger_friction",
-      duration: 180,
+      confidence: 0.91,
+    },
+    payme_scam: {
+      risk: "HIGH",
+      tactic: ["urgency", "financial_pressure", "irreversible_payment"],
+      action: "trigger_friction",
+      confidence: 0.88,
     },
     default: {
       risk: "MEDIUM",
       tactic: ["unusual_pattern"],
       action: "trigger_friction",
-      duration: 90,
+      confidence: 0.75,
     },
   };
 
-  // Return the appropriate response or default
   const result = responses[scamType] || responses.default;
 
-  // Log to console for debugging
-  console.log("🤖 NPU Analysis Complete:", result);
+  console.log("🤖 [SIMULATED] NPU Analysis Complete:", result);
+  console.log(
+    "📍 In production, this runs locally on device NPU - zero cloud data",
+  );
 
   return result;
 };
 
-// Optional: Simulate different risk levels for variety
-export const simulateQuickAnalysis = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
+// For demo: Different scam variants
+export const simulateUrgentFamilyScam = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
   return {
-    risk: "HIGH",
-    tactic: ["urgency"],
+    risk: "CRITICAL",
+    tactic: ["urgency", "family_impersonation", "financial_request"],
     action: "trigger_friction",
-    duration: 180,
+    confidence: 0.96,
   };
 };
 
-// Optional: Simulate false positive (low risk)
-export const simulateLowRiskAnalysis = async () => {
+export const simulateOfficialImpersonation = async () => {
   await new Promise((resolve) => setTimeout(resolve, 2000));
-
   return {
-    risk: "LOW",
-    tactic: [],
-    action: "allow",
-    duration: 0,
+    risk: "CRITICAL",
+    tactic: ["authority_impersonation", "threat", "urgency"],
+    action: "trigger_friction",
+    confidence: 0.93,
   };
 };
