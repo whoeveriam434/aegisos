@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   Switch,
-  Slider,
   TouchableOpacity,
   ScrollView,
 } from "react-native";
+import Slider from "@react-native-community/slider";
 import useStore from "../store";
 
 export default function SettingsScreen() {
