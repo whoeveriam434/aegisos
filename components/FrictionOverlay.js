@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Linking,
 } from "react-native";
 import useStore from "../store";
 import { getTrustedContacts } from "../utils/trustedContactsStorage";
@@ -64,12 +65,43 @@ export default function FrictionOverlay() {
     setShowContactPanel(true);
   };
 
-  const handleCallContact = (contact) => {
+  const normalizePhone = (phone) => {
+    if (!phone) return "";
+    return phone.replace(/[^\d+]/g, "");
+  };
+
+  const handleCallContact = async (contact) => {
     setShowContactPanel(false);
     const contactLabel = contact.phone
       ? `${contact.name} (${contact.phone})`
       : contact.name;
-    Alert.alert("Calling", `Connecting to ${contactLabel}...`);
+    const normalizedPhone = normalizePhone(contact.phone);
+    if (!normalizedPhone) {
+      Alert.alert(
+        "Missing phone number",
+        `${contact.name} does not have a valid phone number.`,
+      );
+      return;
+    }
+
+    const telUrl = `tel:${normalizedPhone}`;
+    const canOpen = await Linking.canOpenURL(telUrl);
+    if (!canOpen) {
+      Alert.alert("Call unavailable", "This device cannot start phone calls.");
+      return;
+    }
+
+    Alert.alert("Call trusted member", `Call ${contactLabel}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Call",
+        onPress: () => {
+          Linking.openURL(telUrl).catch(() => {
+            Alert.alert("Call failed", "Unable to open the phone dialer.");
+          });
+        },
+      },
+    ]);
   };
 
   // HK-specific educational tips based on scam type
