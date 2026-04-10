@@ -167,7 +167,8 @@ export default function FrictionOverlay() {
   const explanation = getScamExplanation();
   const trustedContact = userSettings.trustedContact || "No contact added";
   const personalDetectionMessage =
-    activeDetectionDetails?.personalDetection?.explanation;
+    activeDetectionDetails?.personalDetection?.explanation ||
+    activeDetectionDetails?.explanation;
 
   const renderBreathingExercise = () => {
     if (!showBreathing) {
@@ -260,7 +261,7 @@ export default function FrictionOverlay() {
               style={styles.familyButton}
               onPress={handleNotifyFamily}
             >
-              <Text style={styles.familyButtonText}>👨‍👩‍👧 Notify Family</Text>
+              <Text style={styles.familyButtonText}>👨‍👩‍👧 Notify Family Circle</Text>
             </TouchableOpacity>
           )}
 

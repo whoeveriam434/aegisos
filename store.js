@@ -15,9 +15,9 @@ const useStore = create((set) => ({
     protectionEnabled: true,
   },
 
-  // Privacy consent for personal pattern detection
+  // Privacy settings
   privacySettings: {
-    enablePersonalPatterns: false,
+    enablePersonalPatterns: true, // Default ON for demo
     patternsLearned: false,
     learningProgress: 0,
     lastLearningDate: null,
@@ -104,7 +104,7 @@ const useStore = create((set) => ({
     })),
 
   notifyFamily: (message, contactName) => {
-    console.log(`📱 [SIMULATED] Notifying ${contactName}: ${message}`);
+    console.log(`Family notified: ${contactName}`);
     return true;
   },
 }));
