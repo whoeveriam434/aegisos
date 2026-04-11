@@ -11,9 +11,11 @@ const useStore = create((set) => ({
   // User settings
   userSettings: {
     coolingOffPeriod: 3,
-    trustedContact: null,
     protectionEnabled: true,
   },
+
+  // Trusted Contacts
+  trustedContacts: [],
 
   // Privacy settings
   privacySettings: {
@@ -101,6 +103,17 @@ const useStore = create((set) => ({
   removeFamilyContact: (id) =>
     set((state) => ({
       familyCircle: state.familyCircle.filter((contact) => contact.id !== id),
+    })),
+
+  // Trusted Contacts actions
+  addTrustedContact: (name, phone) =>
+    set((state) => ({
+      trustedContacts: [...state.trustedContacts, { id: Date.now(), name, phone }],
+    })),
+
+  removeTrustedContact: (id) =>
+    set((state) => ({
+      trustedContacts: state.trustedContacts.filter((contact) => contact.id !== id),
     })),
 
   notifyFamily: (message, contactName) => {

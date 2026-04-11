@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Modal,
+  TextInput,
 } from "react-native";
+import { Linking } from "react-native";
 import useStore from "../store";
 
 export default function FrictionOverlay() {
@@ -19,6 +22,7 @@ export default function FrictionOverlay() {
     notifyFamily,
     privacySettings,
     activeDetectionDetails,
+    trustedContacts,
   } = useStore();
 
   const [timeLeft, setTimeLeft] = useState(frictionTimer);
@@ -26,6 +30,8 @@ export default function FrictionOverlay() {
   const [breathPhase, setBreathPhase] = useState("in");
   const [breathCounter, setBreathCounter] = useState(4);
   const [familyNotified, setFamilyNotified] = useState(false);
+  const [showTrustedContactModal, setShowTrustedContactModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const timerRef = useRef(null); // ADD THIS LINE
   const isMountedRef = useRef(true); // ADD THIS LINE
 
@@ -132,6 +138,49 @@ export default function FrictionOverlay() {
     );
   };
 
+  const handleCallTrustedContact = () => {
+    if (trustedContacts.length === 0) {
+      Alert.alert(
+        "📞 No Trusted Contacts",
+        "You haven't added any trusted contacts in Settings. Add one first.",
+        [{ text: "OK" }],
+      );
+      return;
+    }
+
+    if (trustedContacts.length === 1) {
+      // If only one contact, call directly
+      const contact = trustedContacts[0];
+      makeCall(contact.name, contact.phone);
+    } else {
+      // If multiple contacts, show modal to select
+      setShowTrustedContactModal(true);
+    }
+  };
+
+  const makeCall = async (contactName, phoneNumber) => {
+    try {
+      const phoneUrl = `tel:${phoneNumber}`;
+      await Linking.openURL(phoneUrl);
+      setShowTrustedContactModal(false);
+      Alert.alert(
+        "📞 Calling",
+        `Initiating call to ${contactName}...`,
+      );
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        `Unable to make call. Please check the phone number: ${phoneNumber}`,
+      );
+    }
+  };
+
+  const filteredContacts = trustedContacts.filter(
+    (contact) =>
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.phone.includes(searchQuery),
+  );
+
   const getScamExplanation = () => {
     switch (scamType) {
       case "whatsapp":
@@ -165,7 +214,6 @@ export default function FrictionOverlay() {
   };
 
   const explanation = getScamExplanation();
-  const trustedContact = userSettings.trustedContact || "No contact added";
   const personalDetectionMessage =
     activeDetectionDetails?.personalDetection?.explanation ||
     activeDetectionDetails?.explanation;
@@ -267,23 +315,7 @@ export default function FrictionOverlay() {
 
           <TouchableOpacity
             style={styles.contactButton}
-            onPress={() => {
-              Alert.alert(
-                "📞 Contact Trusted Member",
-                `Call ${trustedContact}?`,
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Call",
-                    onPress: () =>
-                      Alert.alert(
-                        "Calling",
-                        `Connecting to ${trustedContact}...`,
-                      ),
-                  },
-                ],
-              );
-            }}
+            onPress={handleCallTrustedContact}
           >
             <Text style={styles.contactButtonText}>
               📞 Call Trusted Contact
@@ -297,6 +329,61 @@ export default function FrictionOverlay() {
           )}
         </View>
       </ScrollView>
+
+      {/* Trusted Contact Selection Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showTrustedContactModal}
+        onRequestClose={() => {
+          setShowTrustedContactModal(false);
+          setSearchQuery("");
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.contactModalContent}>
+            <Text style={styles.contactModalTitle}>🔍 Select Contact to Call</Text>
+
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name or phone..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#8AA4BC"
+            />
+
+            <ScrollView style={styles.contactsScrollView}>
+              {filteredContacts.length === 0 ? (
+                <Text style={styles.noContactsText}>No contacts match your search</Text>
+              ) : (
+                filteredContacts.map((contact) => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactOption}
+                    onPress={() => makeCall(contact.name, contact.phone)}
+                  >
+                    <View>
+                      <Text style={styles.contactOptionName}>{contact.name}</Text>
+                      <Text style={styles.contactOptionPhone}>{contact.phone}</Text>
+                    </View>
+                    <Text style={styles.callIcon}>📞</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.contactModalCancel}
+              onPress={() => {
+                setShowTrustedContactModal(false);
+                setSearchQuery("");
+              }}
+            >
+              <Text style={styles.contactModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -467,5 +554,79 @@ const styles = StyleSheet.create({
     color: "#8AA4BC",
     textAlign: "center",
     marginBottom: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  contactModalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "80%",
+    minHeight: 300,
+  },
+  contactModalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1A3A5C",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: "#DDE5ED",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 16,
+    backgroundColor: "#F9FBFF",
+    color: "#1A3A5C",
+  },
+  contactsScrollView: {
+    maxHeight: 300,
+    marginBottom: 12,
+  },
+  noContactsText: {
+    fontSize: 14,
+    color: "#8AA4BC",
+    textAlign: "center",
+    marginTop: 20,
+  },
+  contactOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F0F4F9",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  contactOptionName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1A3A5C",
+  },
+  contactOptionPhone: {
+    fontSize: 12,
+    color: "#8AA4BC",
+    marginTop: 4,
+  },
+  callIcon: {
+    fontSize: 20,
+  },
+  contactModalCancel: {
+    backgroundColor: "#F0F4F9",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  contactModalCancelText: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

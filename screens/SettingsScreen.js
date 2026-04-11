@@ -33,6 +33,9 @@ export default function SettingsScreen() {
     familyCircle,
     addFamilyContact,
     removeFamilyContact,
+    trustedContacts,
+    addTrustedContact,
+    removeTrustedContact,
   } = useStore();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -43,6 +46,9 @@ export default function SettingsScreen() {
     familyLearned: false,
     bankLearned: false,
   });
+  const [trustedContactModalVisible, setTrustedContactModalVisible] = useState(false);
+  const [newTrustedContactName, setNewTrustedContactName] = useState("");
+  const [newTrustedContactPhone, setNewTrustedContactPhone] = useState("");
 
   // Load learning status on mount
   useEffect(() => {
@@ -130,6 +136,21 @@ export default function SettingsScreen() {
           },
         },
       ],
+    );
+  };
+
+  const handleAddTrustedContact = () => {
+    if (!newTrustedContactName.trim() || !newTrustedContactPhone.trim()) {
+      Alert.alert("Error", "Please enter both name and phone number");
+      return;
+    }
+    addTrustedContact(newTrustedContactName, newTrustedContactPhone);
+    setNewTrustedContactName("");
+    setNewTrustedContactPhone("");
+    setTrustedContactModalVisible(false);
+    Alert.alert(
+      "✅ Trusted Contact Added",
+      `${newTrustedContactName} has been added as a trusted contact.`,
     );
   };
 
@@ -292,37 +313,35 @@ export default function SettingsScreen() {
 
       {/* Trusted Contact */}
       <View style={styles.card}>
-        <Text style={styles.label}>👤 Trusted Contact</Text>
+        <Text style={styles.label}>👤 Trusted Contacts</Text>
         <Text style={styles.description}>
-          Someone you trust to verify suspicious requests
+          People you trust to verify suspicious requests and call during emergencies
         </Text>
-        <Text style={styles.contactDisplay}>
-          {userSettings.trustedContact || "No contact added yet"}
-        </Text>
+
+        {trustedContacts.length === 0 ? (
+          <Text style={styles.emptyText}>No trusted contacts added yet</Text>
+        ) : (
+          trustedContacts.map((contact) => (
+            <View key={contact.id} style={styles.contactItem}>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>{contact.name}</Text>
+                <Text style={styles.contactPhone}>{contact.phone}</Text>
+              </View>
+              <TouchableOpacity onPress={() => removeTrustedContact(contact.id)}>
+                <Text style={styles.removeText}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+
         <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            Alert.alert("Add Trusted Contact", "Enter name and phone number", [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Save",
-                onPress: () => {
-                  updateSettings({
-                    trustedContact: "Daughter: +852 9123 4567",
-                  });
-                  Alert.alert(
-                    "✅ Contact Saved",
-                    "You can now call them from the safety screen.",
-                  );
-                },
-              },
-            ]);
-          }}
+          style={styles.addFamilyButton}
+          onPress={() => setTrustedContactModalVisible(true)}
         >
-          <Text style={styles.addButtonText}>+ Add / Edit Contact</Text>
+          <Text style={styles.addFamilyButtonText}>+ Add Trusted Contact</Text>
         </TouchableOpacity>
         <Text style={styles.hint}>
-          You can call them directly from the safety screen
+          You can call them directly from the safety screen during scam alerts
         </Text>
       </View>
 
@@ -415,6 +434,52 @@ export default function SettingsScreen() {
               <TouchableOpacity
                 style={styles.modalSave}
                 onPress={handleAddContact}
+              >
+                <Text style={styles.modalSaveText}>Add Contact</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal for adding trusted contact */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={trustedContactModalVisible}
+        onRequestClose={() => setTrustedContactModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Trusted Contact</Text>
+
+            <Text style={styles.inputLabel}>Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Mom, Best Friend"
+              value={newTrustedContactName}
+              onChangeText={setNewTrustedContactName}
+            />
+
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="+852 9123 4567"
+              value={newTrustedContactPhone}
+              onChangeText={setNewTrustedContactPhone}
+              keyboardType="phone-pad"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setTrustedContactModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSave}
+                onPress={handleAddTrustedContact}
               >
                 <Text style={styles.modalSaveText}>Add Contact</Text>
               </TouchableOpacity>
