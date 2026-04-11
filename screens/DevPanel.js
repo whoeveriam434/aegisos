@@ -196,7 +196,7 @@ export default function DevPanel() {
 
   const handleReset = () => {
     resetScam();
-    Alert.alert("✅ System Reset", "Aegis OS back to normal monitoring mode.", [
+    Alert.alert("✅ System Reset", "KairoZero OS back to normal monitoring mode.", [
       { text: "OK" },
     ]);
   };
@@ -207,7 +207,7 @@ export default function DevPanel() {
     }
     const detectionType =
       useRealAI && useGemini && geminiReady ? "REAL AI" : "SIMULATED";
-    return `✅ INACTIVE - Using ${detectionType} detection`;
+    return `✅ ACTIVE - Using ${detectionType} detection`;
   };
 
   return (
@@ -323,7 +323,7 @@ export default function DevPanel() {
       </TouchableOpacity>
 
       <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>🎤 Demo Script</Text>
+        <Text style={styles.infoTitle}>🎤 Testing</Text>
         <Text style={styles.infoText}>
           1. Go to Settings → Enable Personal Pattern Detection
         </Text>
@@ -349,21 +349,35 @@ export default function DevPanel() {
           🔬 How Personal Pattern Detection Works
         </Text>
         <Text style={styles.techText}>
-          • Aegis learns communication patterns from your actual messages\n •
-          Compares new messages against learned baseline\n • Detects deviations
-          in urgency, money requests, writing style\n • All analysis runs
-          locally on your device — NO cloud\n • You control: enable, learn,
-          clear patterns anytime
+          • KairoZero learns communication patterns from your actual messages
+        </Text>
+        <Text style={styles.techText}>
+          • Compares new messages against learned baseline
+        </Text>
+        <Text style={styles.techText}>
+          • Detects deviations in urgency, money requests, writing style
+        </Text>
+        <Text style={styles.techText}>
+          • All analysis runs locally on your device — NO cloud
+        </Text>
+        <Text style={styles.techText}>
+          • You control: enable, learn, clear patterns anytime
         </Text>
       </View>
 
       <View style={styles.techBox}>
         <Text style={styles.techTitle}>🔬 AI Architecture</Text>
         <Text style={styles.techText}>
-          • Keyword Mode: Local pattern matching (always works)\n • Gemini Mode:
-          Google Gemini 2.0 Flash-Lite API (real AI reasoning)\n • Both modes
-          trigger the same friction overlay\n • Production path: On-device LLM
-          via LiteRT for privacy
+          • Keyword Mode: Local pattern matching (always works)
+        </Text>
+        <Text style={styles.techText}>
+          • Gemini Mode: Google Gemini 2.0 Flash-Lite API (real AI reasoning)
+        </Text>
+        <Text style={styles.techText}>
+          • Both modes trigger the same friction overlay
+        </Text>
+        <Text style={styles.techText}>
+          • Production path: On-device LLM via LiteRT for privacy
         </Text>
       </View>
     </ScrollView>

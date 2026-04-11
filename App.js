@@ -36,7 +36,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🛡️ Aegis OS</Text>
+        <Text style={styles.headerTitle}>🛡️ KairoZero OS</Text>
         <Text style={styles.headerSubtitle}>
           Trust Architect • {aiReady ? "AI Ready" : "Demo Mode"}
         </Text>

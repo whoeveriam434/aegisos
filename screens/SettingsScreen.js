@@ -103,7 +103,7 @@ export default function SettingsScreen() {
 
     Alert.alert(
       "✅ Patterns Learned",
-      "Aegis has learned how your family and bank normally communicate.\n\n" +
+      "KairoZero has learned how your family and bank normally communicate.\n\n" +
         "• Family: Never asks for money or uses urgent language\n" +
         "• Bank: Uses formal language, never demands immediate action\n\n" +
         "Your data never left your device.",
@@ -144,8 +144,9 @@ export default function SettingsScreen() {
       {/* Enable Protection Toggle */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.label}>🛡️ Enable Aegis Protection</Text>
+          <Text style={styles.label}>🛡️ Enable KairoZero Protection</Text>
           <Switch
+            style={{ marginLeft: -30 }}
             value={userSettings.protectionEnabled}
             onValueChange={(value) =>
               updateSettings({ protectionEnabled: value })
@@ -155,15 +156,16 @@ export default function SettingsScreen() {
           />
         </View>
         <Text style={styles.hint}>
-          When ON, Aegis monitors for scam patterns
+          When ON, KairoZero monitors for scam patterns
         </Text>
       </View>
 
       {/* Personal Pattern Detection (Privacy-First) */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.label}>🔐 Personal Pattern Detection</Text>
+          <Text style={styles.label}>🔐 Personal Pattern Detections</Text>
           <Switch
+            style={{ marginLeft: -30 }}
             value={privacySettings.enablePersonalPatterns}
             onValueChange={(value) => setPersonalPatternsEnabled(value)}
             trackColor={{ false: "#ccc", true: "#4CAF50" }}
@@ -259,7 +261,7 @@ export default function SettingsScreen() {
 
             <Text style={styles.hint}>
               {learningStatus.familyLearned
-                ? "✓ Aegis now knows how your family communicates. Impersonation attempts will be flagged."
+                ? "✓ KairoZero now knows how your family communicates. Impersonation attempts will be flagged."
                 : "Learn your patterns to enable personalized scam detection."}
             </Text>
           </View>
@@ -366,10 +368,10 @@ export default function SettingsScreen() {
           💡 How Personal Pattern Detection Works
         </Text>
         <Text style={styles.infoText}>
-          • Aegis learns how your family and bank normally communicate\n • All
-          analysis happens on your device — no cloud, no data sharing\n • When a
-          message deviates from normal patterns, we flag it\n • You're always in
-          control — enable, disable, or clear patterns anytime
+          • KairoZero learns how your family and bank normally communicate\n •
+          All analysis happens on your device — no cloud, no data sharing\n •
+          When a message deviates from normal patterns, we flag it\n • You're
+          always in control — enable, disable, or clear patterns anytime
         </Text>
       </View>
 
@@ -457,13 +459,15 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-start", // Changed from space-between
     alignItems: "center",
+    // gap: -10, // Adds space between text and switch
   },
   label: {
     fontSize: 20,
     fontWeight: "600",
     color: "#1A3A5C",
+    // marginRight: 20,
   },
   description: {
     fontSize: 14,
