@@ -349,21 +349,21 @@ export default function DevPanel() {
           🔬 How Personal Pattern Detection Works
         </Text>
         <Text style={styles.techText}>
-          • Aegis learns communication patterns from your actual messages\n •
-          Compares new messages against learned baseline\n • Detects deviations
-          in urgency, money requests, writing style\n • All analysis runs
-          locally on your device — NO cloud\n • You control: enable, learn,
-          clear patterns anytime
+          {'Aegis learns communication patterns from your actual messages\n'}
+          {'Compares new messages against learned baseline\n'} 
+          {'Detects deviations in urgency, money requests, writing style\n'}
+          {'All analysis runs locally on your device — NO cloud\n'}
+          {'You control: enable, learn, clear patterns anytime'}  
         </Text>
       </View>
 
       <View style={styles.techBox}>
         <Text style={styles.techTitle}>🔬 AI Architecture</Text>
         <Text style={styles.techText}>
-          • Keyword Mode: Local pattern matching (always works)\n • Gemini Mode:
-          Google Gemini 2.0 Flash-Lite API (real AI reasoning)\n • Both modes
-          trigger the same friction overlay\n • Production path: On-device LLM
-          via LiteRT for privacy
+          {'Keyword Mode: Local pattern matching (always works)\n'}
+          {'Gemini Mode: Google Gemini 2.0 Flash-Lite API (real AI reasoning)\n'}
+          {'Both modes trigger the same friction overlay\n'}
+          {'Production path: On-device LLM via LiteRT for privacy'}
         </Text>
       </View>
     </ScrollView>
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   techText: {
-    fontSize: 13,
+    fontSize: 10,
     color: "#1A3A5C",
     lineHeight: 18,
   },

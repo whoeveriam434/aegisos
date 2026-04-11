@@ -385,10 +385,11 @@ export default function SettingsScreen() {
           💡 How Personal Pattern Detection Works
         </Text>
         <Text style={styles.infoText}>
-          • Aegis learns how your family and bank normally communicate\n • All
-          analysis happens on your device — no cloud, no data sharing\n • When a
-          message deviates from normal patterns, we flag it\n • You're always in
-          control — enable, disable, or clear patterns anytime
+          {'Aegis learns how your family and bank normally communicate'}
+          {'\n'}
+          {'All analysis happens on your device — no cloud, no data sharing'}
+          {'When a message deviates from normal patterns, we flag it\n'}
+          {'You are always in control — enable, disable, or clear patterns anytime'}
         </Text>
       </View>
 
