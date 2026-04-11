@@ -15,6 +15,7 @@ import {
   initGeminiMode,
   isGeminiEnabled,
 } from "../utils/realAIDetection";
+import { detectImpersonation } from "../utils/impersonationDetector";
 // import { testGeminiConnection } from '../utils/geminiDetection'; // COMMENTED OUT - Real API kept for reference
 // import { GEMINI_API_KEY } from '../config'; // COMMENTED OUT - API key not needed for demo mode
 
@@ -28,8 +29,14 @@ export default function DevPanel() {
     userSettings,
     privacySettings,
   } = useStore();
+
+  // Gemini mode state
   const [useGemini, setUseGemini] = useState(true); // Default ON
   const [geminiReady, setGeminiReady] = useState(true); // Always ready for demo
+
+  // Real AI vs Simulated mode state
+  const [useRealAI, setUseRealAI] = useState(true);
+
   const [isLoading, setIsLoading] = useState(false);
 
   // ============================================
@@ -89,6 +96,15 @@ export default function DevPanel() {
     );
   };
 
+  const toggleAIMode = () => {
+    setUseRealAI(!useRealAI);
+    Alert.alert(
+      `Mode Changed`,
+      `Now using ${!useRealAI ? "REAL AI" : "SIMULATED"} detection.`,
+      [{ text: "OK" }],
+    );
+  };
+
   const handleTriggerScam = async (type, scamName, appContext = null) => {
     const scamTexts = {
       whatsapp:
@@ -99,69 +115,83 @@ export default function DevPanel() {
         "ALERT: Your PayMe account will be suspended in 2 hours. Verify your identity with an urgent FPS transfer of HK$8,000 to maintain your account.",
     };
 
-    const useRealAI = useGemini && geminiReady;
+    const useRealAIDetection = useRealAI && useGemini && geminiReady;
 
     Alert.alert(
       "🔍 AI Analysis Running",
-      `Using ${useRealAI ? "Gemini AI (Real)" : "Keyword Detection"} for ${scamName}...`,
+      `Using ${useRealAIDetection ? "REAL on-device AI" : "Simulated NPU"} detection...`,
       [{ text: "OK" }],
     );
 
     setIsLoading(true);
     let result;
+    let personalDetection = null;
 
-    if (useRealAI) {
+    if (useRealAIDetection) {
+      // Run keyword-based detection
       result = await detectScamWithRealAI(scamTexts[type], type);
-      console.log("AI Result:", result);
+
+      // Run personal pattern detection if enabled
+      if (privacySettings.enablePersonalPatterns) {
+        personalDetection = await detectImpersonation(
+          scamTexts[type],
+          "family",
+          true,
+        );
+        console.log("🧠 Personal Detection Result:", personalDetection);
+      }
     } else {
-      result = await detectScamWithRealAI(scamTexts[type], type);
-      console.log("Pattern Result:", result);
+      result = await simulateNPUAnalysis(type);
     }
 
     setIsLoading(false);
 
     if (result.action === "trigger_friction" || result.isScam === true) {
       const duration = userSettings.coolingOffPeriod * 60;
-      // Pass detection details to friction overlay
-      triggerScam(type, duration, appContext, {
-        isImpersonation: result.isScam,
-        confidence: result.confidence,
-        tactics: result.tactics,
-        explanation: result.explanation,
-        personalDetection: result.personalDetection || null,
-      });
 
-      const confidencePercent = Math.round(result.confidence * 100);
-      const sourceLabel =
-        result.source === "gemini" ? "GEMINI AI" : "Keyword Detection";
-      Alert.alert(
-        "🚨 Scam Pattern Detected!",
-        `Detection: ${sourceLabel}\n` +
-          `Risk: ${result.risk}\n` +
-          `Confidence: ${confidencePercent}%\n` +
-          `Tactics: ${result.tactics?.join(", ") || "detected"}\n\n` +
-          `${result.explanation || `Cooling-off period: ${userSettings.coolingOffPeriod} minutes.`}`,
-        [{ text: "OK" }],
-      );
+      // Pass personal detection details to the friction overlay
+      triggerScam(type, duration, appContext, { personalDetection });
+
+      let message = `Detection: ${useRealAIDetection ? "REAL AI" : "Simulated NPU"}\n`;
+      message += `Risk: ${result.risk}\n`;
+      message += `Confidence: ${result.confidence ? Math.round(result.confidence * 100) : "N/A"}%\n\n`;
+
+      if (personalDetection?.isImpersonation) {
+        message += `🧠 PERSONAL PATTERN DETECTION:\n`;
+        message += `${personalDetection.deviations?.slice(0, 2).join("\n")}\n`;
+        message += `Confidence: ${Math.round(personalDetection.confidence * 100)}%\n\n`;
+      }
+
+      message += `Cooling-off period: ${userSettings.coolingOffPeriod} minutes.`;
+
+      Alert.alert("🚨 Scam Pattern Detected!", message, [{ text: "OK" }]);
     } else {
       Alert.alert(
         "✅ No Scam Detected",
-        `Confidence: ${Math.round(result.confidence * 100)}%\n${result.explanation || ""}`,
+        `Confidence: ${Math.round(result.confidence * 100)}%`,
         [{ text: "OK" }],
       );
     }
   };
 
   const handleWhatsAppScam = () => {
-    handleTriggerScam("whatsapp", "WhatsApp Message Analysis", "WhatsApp");
+    handleTriggerScam("whatsapp", 'WhatsApp "Guess Who I Am" Scam', "WhatsApp");
   };
 
   const handleFakeCallScam = () => {
-    handleTriggerScam("fake_call", "Call Analysis", "Phone");
+    handleTriggerScam(
+      "fake_call",
+      "Fake Official Call (HK Police/Bank)",
+      "Phone",
+    );
   };
 
   const handlePayMeScam = () => {
-    handleTriggerScam("payme_scam", "Payment Request Analysis", "PayMe");
+    handleTriggerScam(
+      "payme_scam",
+      "Urgent FPS/PayMe Transfer Request",
+      "PayMe",
+    );
   };
 
   const handleReset = () => {
@@ -175,7 +205,9 @@ export default function DevPanel() {
     if (isScamActive) {
       return `⚠️ ACTIVE - ${scamType} (${Math.ceil(frictionTimer / 60)}m ${frictionTimer % 60}s remaining)`;
     }
-    return `✅ INACTIVE - Using ${useGemini && geminiReady ? "Gemini AI" : "Pattern"} detection`;
+    const detectionType =
+      useRealAI && useGemini && geminiReady ? "REAL AI" : "SIMULATED";
+    return `✅ INACTIVE - Using ${detectionType} detection`;
   };
 
   return (
@@ -183,10 +215,31 @@ export default function DevPanel() {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Control Panel</Text>
+      <Text style={styles.title}>🎮 Dev Panel</Text>
       <Text style={styles.subtitle}>Demo Control Center</Text>
 
-      {/* AI Mode Toggle */}
+      {/* AI Mode Toggle (Real vs Simulated) */}
+      <TouchableOpacity
+        style={[
+          styles.modeButton,
+          useRealAI && useGemini && geminiReady
+            ? styles.realMode
+            : styles.simMode,
+        ]}
+        onPress={toggleAIMode}
+      >
+        <Text style={styles.modeButtonText}>
+          {useRealAI && useGemini && geminiReady
+            ? "🤖 REAL AI MODE (Active)"
+            : "🎮 SIMULATED MODE (Active)"}
+        </Text>
+        <Text style={styles.modeSubtext}>
+          Tap to switch to{" "}
+          {useRealAI && useGemini && geminiReady ? "Simulated" : "Real AI"}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Gemini Mode Toggle */}
       <View style={styles.modeCard}>
         <View style={styles.modeRow}>
           <Text style={styles.modeLabel}>🤖 Gemini AI Mode</Text>
@@ -204,20 +257,46 @@ export default function DevPanel() {
         </Text>
       </View>
 
+      {/* Personal Pattern Status */}
+      {privacySettings.enablePersonalPatterns ? (
+        <View style={styles.personalActiveBadge}>
+          <Text style={styles.personalActiveText}>
+            🧠 Personal Pattern Detection: ENABLED
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.personalInactiveBadge}>
+          <Text style={styles.personalInactiveText}>
+            🔒 Personal Pattern Detection: DISABLED
+          </Text>
+          <Text style={styles.personalHint}>
+            Enable in Settings for personalized scam detection
+          </Text>
+        </View>
+      )}
+
       <View style={[styles.statusCard, isScamActive && styles.statusActive]}>
         <Text style={styles.statusText}>{getStatusText()}</Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Test Scenarios</Text>
+      <Text style={styles.sectionTitle}>Trigger Scam Simulation</Text>
 
-      <TouchableOpacity style={[styles.triggerButton, styles.whatsappButton]}>
+      <TouchableOpacity
+        style={[styles.triggerButton, styles.whatsappButton]}
+        onPress={handleWhatsAppScam}
+        disabled={isLoading}
+      >
         <Text style={styles.triggerButtonText}>💬 Trigger WhatsApp Scam</Text>
         <Text style={styles.buttonSubtext}>
           "Guess Who I Am" • Urgent money request
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.triggerButton, styles.callButton]}>
+      <TouchableOpacity
+        style={[styles.triggerButton, styles.callButton]}
+        onPress={handleFakeCallScam}
+        disabled={isLoading}
+      >
         <Text style={styles.triggerButtonText}>
           📞 Trigger Fake Official Call
         </Text>
@@ -226,7 +305,11 @@ export default function DevPanel() {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.triggerButton, styles.paymeButton]}>
+      <TouchableOpacity
+        style={[styles.triggerButton, styles.paymeButton]}
+        onPress={handlePayMeScam}
+        disabled={isLoading}
+      >
         <Text style={styles.triggerButtonText}>💸 Trigger PayMe/FPS Scam</Text>
         <Text style={styles.buttonSubtext}>
           Urgent transfer request • Irreversible payment
@@ -240,12 +323,38 @@ export default function DevPanel() {
       </TouchableOpacity>
 
       <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>🎤 Demo Instructions</Text>
-        <Text style={styles.infoText}>1. Toggle Gemini AI Mode</Text>
-        <Text style={styles.infoText}>2. Press any scam button above</Text>
-        <Text style={styles.infoText}>3. AI analyzes scam text patterns</Text>
-        <Text style={styles.infoText}>4. Go to "Daily Apps" tab</Text>
-        <Text style={styles.infoText}>5. View results in main screen</Text>
+        <Text style={styles.infoTitle}>🎤 Demo Script</Text>
+        <Text style={styles.infoText}>
+          1. Go to Settings → Enable Personal Pattern Detection
+        </Text>
+        <Text style={styles.infoText}>
+          2. Tap "Learn My Patterns" (uses sample messages)
+        </Text>
+        <Text style={styles.infoText}>
+          3. Return here and press any scam button
+        </Text>
+        <Text style={styles.infoText}>
+          4. AI analyzes + Personal Pattern Detection runs
+        </Text>
+        <Text style={styles.infoText}>
+          5. Go to "Daily Apps" tab → Friction overlay appears
+        </Text>
+        <Text style={styles.infoText}>
+          6. See personalized detection results!
+        </Text>
+      </View>
+
+      <View style={styles.techBox}>
+        <Text style={styles.techTitle}>
+          🔬 How Personal Pattern Detection Works
+        </Text>
+        <Text style={styles.techText}>
+          • Aegis learns communication patterns from your actual messages\n •
+          Compares new messages against learned baseline\n • Detects deviations
+          in urgency, money requests, writing style\n • All analysis runs
+          locally on your device — NO cloud\n • You control: enable, learn,
+          clear patterns anytime
+        </Text>
       </View>
 
       <View style={styles.techBox}>
@@ -279,6 +388,29 @@ const styles = StyleSheet.create({
     color: "#6B8AAC",
     marginBottom: 16,
   },
+  modeButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  realMode: {
+    backgroundColor: "#4CAF50",
+  },
+  simMode: {
+    backgroundColor: "#FF9800",
+  },
+  modeButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modeSubtext: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    marginTop: 4,
+  },
   modeCard: {
     backgroundColor: "white",
     borderRadius: 16,
@@ -305,6 +437,35 @@ const styles = StyleSheet.create({
     color: "#8AA4BC",
     marginTop: 8,
   },
+  personalActiveBadge: {
+    backgroundColor: "#E8F5E9",
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  personalActiveText: {
+    fontSize: 13,
+    color: "#2E7D32",
+    fontWeight: "500",
+  },
+  personalInactiveBadge: {
+    backgroundColor: "#FFF8E7",
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  personalInactiveText: {
+    fontSize: 13,
+    color: "#FF9800",
+    fontWeight: "500",
+  },
+  personalHint: {
+    fontSize: 11,
+    color: "#8AA4BC",
+    marginTop: 4,
+  },
   statusCard: {
     backgroundColor: "#E8F5E9",
     borderRadius: 16,
@@ -314,8 +475,8 @@ const styles = StyleSheet.create({
     borderColor: "#A5D6A7",
   },
   statusActive: {
-    backgroundColor: "#FFF8E7",
-    borderColor: "#FFB347",
+    backgroundColor: "#FFEBEE",
+    borderColor: "#EF9A9A",
   },
   statusText: {
     fontSize: 16,
@@ -393,7 +554,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8F0FE",
     borderRadius: 16,
     padding: 16,
-    marginBottom: 40,
+    marginBottom: 16,
     borderLeftWidth: 4,
     borderLeftColor: "#4A90D9",
   },
