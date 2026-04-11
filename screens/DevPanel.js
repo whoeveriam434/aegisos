@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,18 +6,14 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  Switch,
 } from "react-native";
 import useStore from "../store";
 import { simulateNPUAnalysis } from "../utils/simulateAI";
 import {
-  detectScamWithRealAI,
-  initGeminiMode,
-  isGeminiEnabled,
+  detectScamWithAI,
+  analyzeMessageText,
+  initAIModel,
 } from "../utils/realAIDetection";
-import { detectImpersonation } from "../utils/impersonationDetector";
-// import { testGeminiConnection } from '../utils/geminiDetection'; // COMMENTED OUT - Real API kept for reference
-// import { GEMINI_API_KEY } from '../config'; // COMMENTED OUT - API key not needed for demo mode
 
 export default function DevPanel() {
   const {
@@ -27,85 +23,11 @@ export default function DevPanel() {
     scamType,
     frictionTimer,
     userSettings,
-    privacySettings,
   } = useStore();
-
-  // Gemini mode state
-  const [useGemini, setUseGemini] = useState(true); // Default ON
-  const [geminiReady, setGeminiReady] = useState(true); // Always ready for demo
-
-  // Real AI vs Simulated mode state
-  const [useRealAI, setUseRealAI] = useState(true);
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  // ============================================
-  // REAL GEMINI API SETUP - COMMENTED OUT FOR DEMO
-  // Uncomment for production with valid API key
-  // ============================================
-  /*
-  useEffect(() => {
-    const setupGemini = async () => {
-      const success = await initGeminiMode();
-      setGeminiReady(success);
-      if (success) {
-        console.log('✅ Gemini AI ready');
-      } else {
-        console.log('⚠️ Gemini initialization failed');
-      }
-    };
-    setupGemini();
-  }, []);
-  */
-
-  // Demo mode: Force Gemini ready
-  useEffect(() => {
-    setGeminiReady(true);
-    setUseGemini(true);
-    console.log("✅ AI Ready");
-  }, []);
-
-  // ============================================
-  // REAL TOGGLE FUNCTION - COMMENTED OUT
-  // ============================================
-  /*
-  const toggleGeminiMode = async () => {
-    if (!useGemini) {
-      if (!geminiReady) {
-        Alert.alert("AI Not Ready", "Please check configuration.", [{ text: "OK" }]);
-        return;
-      }
-      setUseGemini(true);
-      Alert.alert("AI Mode Active", "Using advanced AI detection.", [{ text: "OK" }]);
-    } else {
-      setUseGemini(false);
-      Alert.alert("Standard Mode Active", "Using pattern detection.", [{ text: "OK" }]);
-    }
-  };
-  */
-
-  // Demo toggle - always works
-  const toggleGeminiMode = () => {
-    setUseGemini(!useGemini);
-    Alert.alert(
-      !useGemini ? "🤖 Gemini AI Mode Active" : "📝 Keyword Mode Active",
-      !useGemini
-        ? "Using Google Gemini for real scam detection."
-        : "Using keyword pattern matching for detection.",
-      [{ text: "OK" }],
-    );
-  };
-
-  const toggleAIMode = () => {
-    setUseRealAI(!useRealAI);
-    Alert.alert(
-      `Mode Changed`,
-      `Now using ${!useRealAI ? "REAL AI" : "SIMULATED"} detection.`,
-      [{ text: "OK" }],
-    );
-  };
+  const [useRealAI, setUseRealAI] = useState(true); // Toggle between real and simulated
 
   const handleTriggerScam = async (type, scamName, appContext = null) => {
+    // Create sample scam text based on type
     const scamTexts = {
       whatsapp:
         "URGENT! Mom, it's me. I lost my phone. Send HK$50,000 to this PayMe account immediately. Don't tell anyone. I'll explain later.",
@@ -115,60 +37,45 @@ export default function DevPanel() {
         "ALERT: Your PayMe account will be suspended in 2 hours. Verify your identity with an urgent FPS transfer of HK$8,000 to maintain your account.",
     };
 
-    const useRealAIDetection = useRealAI && useGemini && geminiReady;
-
     Alert.alert(
       "🔍 AI Analysis Running",
-      `Using ${useRealAIDetection ? "REAL on-device AI" : "Simulated NPU"} detection...`,
+      `Using ${useRealAI ? "REAL on-device AI" : "Simulated NPU"} detection for ${scamName}...`,
       [{ text: "OK" }],
     );
 
-    setIsLoading(true);
     let result;
-    let personalDetection = null;
 
-    if (useRealAIDetection) {
-      // Run keyword-based detection
-      result = await detectScamWithRealAI(scamTexts[type], type);
-
-      // Run personal pattern detection if enabled
-      if (privacySettings.enablePersonalPatterns) {
-        personalDetection = await detectImpersonation(
-          scamTexts[type],
-          "family",
-          true,
-        );
-        console.log("🧠 Personal Detection Result:", personalDetection);
-      }
+    if (useRealAI) {
+      // REAL AI detection
+      result = await detectScamWithAI(scamTexts[type], type);
+      console.log("🤖 REAL AI Result:", result);
     } else {
+      // Simulated fallback
       result = await simulateNPUAnalysis(type);
+      console.log("🎮 Simulated Result:", result);
     }
-
-    setIsLoading(false);
 
     if (result.action === "trigger_friction" || result.isScam === true) {
       const duration = userSettings.coolingOffPeriod * 60;
+      triggerScam(type, duration, appContext);
 
-      // Pass personal detection details to the friction overlay
-      triggerScam(type, duration, appContext, { personalDetection });
+      const confidencePercent = result.confidence
+        ? Math.round(result.confidence * 100)
+        : "N/A";
 
-      let message = `Detection: ${useRealAIDetection ? "REAL AI" : "Simulated NPU"}\n`;
-      message += `Risk: ${result.risk}\n`;
-      message += `Confidence: ${result.confidence ? Math.round(result.confidence * 100) : "N/A"}%\n\n`;
-
-      if (personalDetection?.isImpersonation) {
-        message += `🧠 PERSONAL PATTERN DETECTION:\n`;
-        message += `${personalDetection.deviations?.slice(0, 2).join("\n")}\n`;
-        message += `Confidence: ${Math.round(personalDetection.confidence * 100)}%\n\n`;
-      }
-
-      message += `Cooling-off period: ${userSettings.coolingOffPeriod} minutes.`;
-
-      Alert.alert("🚨 Scam Pattern Detected!", message, [{ text: "OK" }]);
+      Alert.alert(
+        "🚨 Scam Pattern Detected!",
+        `Detection: ${useRealAI ? "REAL AI (keyword-based)" : "Simulated NPU"}\n` +
+          `Risk: ${result.risk}\n` +
+          `Confidence: ${confidencePercent}%\n` +
+          `Tactics: ${result.tactic || result.tactics?.join(", ") || "detected"}\n\n` +
+          `Algorithmic friction activated for ${userSettings.coolingOffPeriod} minutes.`,
+        [{ text: "OK" }],
+      );
     } else {
       Alert.alert(
         "✅ No Scam Detected",
-        `Confidence: ${Math.round(result.confidence * 100)}%`,
+        `AI analysis found no scam patterns.\nConfidence: ${Math.round(result.confidence * 100)}%`,
         [{ text: "OK" }],
       );
     }
@@ -196,18 +103,35 @@ export default function DevPanel() {
 
   const handleReset = () => {
     resetScam();
-    Alert.alert("✅ System Reset", "KairoZero OS back to normal monitoring mode.", [
+    Alert.alert("✅ System Reset", "Aegis OS back to normal monitoring mode.", [
       { text: "OK" },
     ]);
+  };
+
+  const toggleAIMode = async () => {
+    if (!useRealAI) {
+      // Switching to real AI - test if it works
+      const success = await initAIModel();
+      if (success) {
+        setUseRealAI(true);
+        Alert.alert(
+          "✅ Real AI Active",
+          "Using keyword-based scam detection on device.",
+        );
+      } else {
+        Alert.alert("⚠️ AI Not Ready", "Staying on simulated mode.");
+      }
+    } else {
+      setUseRealAI(false);
+      Alert.alert("🎮 Simulated Mode Active", "Using simulated NPU responses.");
+    }
   };
 
   const getStatusText = () => {
     if (isScamActive) {
       return `⚠️ ACTIVE - ${scamType} (${Math.ceil(frictionTimer / 60)}m ${frictionTimer % 60}s remaining)`;
     }
-    const detectionType =
-      useRealAI && useGemini && geminiReady ? "REAL AI" : "SIMULATED";
-    return `✅ ACTIVE - Using ${detectionType} detection`;
+    return `✅ INACTIVE - Using ${useRealAI ? "REAL AI" : "SIMULATED"} detection`;
   };
 
   return (
@@ -218,62 +142,23 @@ export default function DevPanel() {
       <Text style={styles.title}>🎮 Dev Panel</Text>
       <Text style={styles.subtitle}>Demo Control Center</Text>
 
-      {/* AI Mode Toggle (Real vs Simulated) */}
+      {/* AI Mode Toggle */}
       <TouchableOpacity
         style={[
           styles.modeButton,
-          useRealAI && useGemini && geminiReady
-            ? styles.realMode
-            : styles.simMode,
+          useRealAI ? styles.realMode : styles.simMode,
         ]}
         onPress={toggleAIMode}
       >
         <Text style={styles.modeButtonText}>
-          {useRealAI && useGemini && geminiReady
+          {useRealAI
             ? "🤖 REAL AI MODE (Active)"
             : "🎮 SIMULATED MODE (Active)"}
         </Text>
         <Text style={styles.modeSubtext}>
-          Tap to switch to{" "}
-          {useRealAI && useGemini && geminiReady ? "Simulated" : "Real AI"}
+          Tap to switch to {useRealAI ? "Simulated" : "Real AI"}
         </Text>
       </TouchableOpacity>
-
-      {/* Gemini Mode Toggle */}
-      <View style={styles.modeCard}>
-        <View style={styles.modeRow}>
-          <Text style={styles.modeLabel}>🤖 Gemini AI Mode</Text>
-          <Switch
-            value={useGemini && geminiReady}
-            onValueChange={toggleGeminiMode}
-            trackColor={{ false: "#ccc", true: "#4CAF50" }}
-            thumbColor={"#fff"}
-          />
-        </View>
-        <Text style={styles.modeHint}>
-          {geminiReady
-            ? "✓ Gemini API ready. Toggle to use real AI detection."
-            : "⚠️ Gemini not ready. Check API key in .env file."}
-        </Text>
-      </View>
-
-      {/* Personal Pattern Status */}
-      {privacySettings.enablePersonalPatterns ? (
-        <View style={styles.personalActiveBadge}>
-          <Text style={styles.personalActiveText}>
-            🧠 Personal Pattern Detection: ENABLED
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.personalInactiveBadge}>
-          <Text style={styles.personalInactiveText}>
-            🔒 Personal Pattern Detection: DISABLED
-          </Text>
-          <Text style={styles.personalHint}>
-            Enable in Settings for personalized scam detection
-          </Text>
-        </View>
-      )}
 
       <View style={[styles.statusCard, isScamActive && styles.statusActive]}>
         <Text style={styles.statusText}>{getStatusText()}</Text>
@@ -284,7 +169,6 @@ export default function DevPanel() {
       <TouchableOpacity
         style={[styles.triggerButton, styles.whatsappButton]}
         onPress={handleWhatsAppScam}
-        disabled={isLoading}
       >
         <Text style={styles.triggerButtonText}>💬 Trigger WhatsApp Scam</Text>
         <Text style={styles.buttonSubtext}>
@@ -295,7 +179,6 @@ export default function DevPanel() {
       <TouchableOpacity
         style={[styles.triggerButton, styles.callButton]}
         onPress={handleFakeCallScam}
-        disabled={isLoading}
       >
         <Text style={styles.triggerButtonText}>
           📞 Trigger Fake Official Call
@@ -308,7 +191,6 @@ export default function DevPanel() {
       <TouchableOpacity
         style={[styles.triggerButton, styles.paymeButton]}
         onPress={handlePayMeScam}
-        disabled={isLoading}
       >
         <Text style={styles.triggerButtonText}>💸 Trigger PayMe/FPS Scam</Text>
         <Text style={styles.buttonSubtext}>
@@ -323,61 +205,26 @@ export default function DevPanel() {
       </TouchableOpacity>
 
       <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>🎤 Testing</Text>
+        <Text style={styles.infoTitle}>🎤 Demo Script</Text>
         <Text style={styles.infoText}>
-          1. Go to Settings → Enable Personal Pattern Detection
+          1. Choose AI mode (Real or Simulated)
         </Text>
+        <Text style={styles.infoText}>2. Press any scam button above</Text>
+        <Text style={styles.infoText}>3. AI analyzes scam text patterns</Text>
+        <Text style={styles.infoText}>4. Go to "Daily Apps" tab</Text>
+        <Text style={styles.infoText}>5. Friction overlay appears</Text>
         <Text style={styles.infoText}>
-          2. Tap "Learn My Patterns" (uses sample messages)
-        </Text>
-        <Text style={styles.infoText}>
-          3. Return here and press any scam button
-        </Text>
-        <Text style={styles.infoText}>
-          4. AI analyzes + Personal Pattern Detection runs
-        </Text>
-        <Text style={styles.infoText}>
-          5. Go to "Daily Apps" tab → Friction overlay appears
-        </Text>
-        <Text style={styles.infoText}>
-          6. See personalized detection results!
+          6. Timer counts down (your preset duration)
         </Text>
       </View>
 
       <View style={styles.techBox}>
-        <Text style={styles.techTitle}>
-          🔬 How Personal Pattern Detection Works
-        </Text>
+        <Text style={styles.techTitle}>🔬 How Real AI Detection Works</Text>
         <Text style={styles.techText}>
-          • KairoZero learns communication patterns from your actual messages
-        </Text>
-        <Text style={styles.techText}>
-          • Compares new messages against learned baseline
-        </Text>
-        <Text style={styles.techText}>
-          • Detects deviations in urgency, money requests, writing style
-        </Text>
-        <Text style={styles.techText}>
-          • All analysis runs locally on your device — NO cloud
-        </Text>
-        <Text style={styles.techText}>
-          • You control: enable, learn, clear patterns anytime
-        </Text>
-      </View>
-
-      <View style={styles.techBox}>
-        <Text style={styles.techTitle}>🔬 AI Architecture</Text>
-        <Text style={styles.techText}>
-          • Keyword Mode: Local pattern matching (always works)
-        </Text>
-        <Text style={styles.techText}>
-          • Gemini Mode: Google Gemini 2.0 Flash-Lite API (real AI reasoning)
-        </Text>
-        <Text style={styles.techText}>
-          • Both modes trigger the same friction overlay
-        </Text>
-        <Text style={styles.techText}>
-          • Production path: On-device LLM via LiteRT for privacy
+          • Keyword-based pattern matching runs entirely on-device • Detects
+          urgency, impersonation, financial pressure • Zero data leaves your
+          phone • Can be upgraded to actual ML model (TensorFlow Lite /
+          ExecuTorch)
         </Text>
       </View>
     </ScrollView>
@@ -406,7 +253,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 16,
-    marginBottom: 12,
+    marginBottom: 20,
     alignItems: "center",
   },
   realMode: {
@@ -423,61 +270,6 @@ const styles = StyleSheet.create({
   modeSubtext: {
     color: "rgba(255,255,255,0.8)",
     fontSize: 12,
-    marginTop: 4,
-  },
-  modeCard: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  modeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  modeLabel: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1A3A5C",
-  },
-  modeHint: {
-    fontSize: 12,
-    color: "#8AA4BC",
-    marginTop: 8,
-  },
-  personalActiveBadge: {
-    backgroundColor: "#E8F5E9",
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  personalActiveText: {
-    fontSize: 13,
-    color: "#2E7D32",
-    fontWeight: "500",
-  },
-  personalInactiveBadge: {
-    backgroundColor: "#FFF8E7",
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  personalInactiveText: {
-    fontSize: 13,
-    color: "#FF9800",
-    fontWeight: "500",
-  },
-  personalHint: {
-    fontSize: 11,
-    color: "#8AA4BC",
     marginTop: 4,
   },
   statusCard: {
@@ -568,7 +360,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8F0FE",
     borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 40,
     borderLeftWidth: 4,
     borderLeftColor: "#4A90D9",
   },

@@ -21,7 +21,7 @@ export default function HomeScreen() {
   const handleAppPress = (appName, appIcon) => {
     Alert.alert(
       `Open ${appName}`,
-      `This would open ${appName}. In production, KairoZero OS monitors activity here.`,
+      `This would open ${appName}. In production, Aegis OS monitors activity here.`,
       [{ text: "OK" }],
     );
   };
@@ -30,7 +30,7 @@ export default function HomeScreen() {
   const handleEmergencyPress = () => {
     Alert.alert(
       "🛡️ Emergency Protection",
-      "You're feeling pressured. KairoZero will activate a 5-minute cooling-off period to give you time to think clearly.\n\nYou can also notify a family member during this time.",
+      "You're feeling pressured. Aegis will activate a 5-minute cooling-off period to give you time to think clearly.\n\nYou can also notify a family member during this time.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -55,7 +55,7 @@ export default function HomeScreen() {
     >
       <Text style={styles.greeting}>Good day, 👋</Text>
       <Text style={styles.subtitle}>
-        Your daily apps are protected by KairoZero OS
+        Your daily apps are protected by Aegis OS
       </Text>
 
       {/* Feature 3: Emergency Button - Prominent placement */}
@@ -133,7 +133,7 @@ export default function HomeScreen() {
       {/* Protection Status */}
       <View style={styles.protectionCard}>
         <Text style={styles.protectionIcon}>🛡️</Text>
-        <Text style={styles.protectionTitle}>KairoZero OS Active</Text>
+        <Text style={styles.protectionTitle}>Aegis OS Active</Text>
         <Text style={styles.protectionText}>
           Monitoring for urgency patterns, impersonation, and financial pressure
         </Text>
